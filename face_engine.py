@@ -1,3 +1,14 @@
+def safe_import_cv2():
+    try:
+        import cv2
+        return cv2
+    except Exception as e:
+        raise RuntimeError("OpenCV not available (Railway headless)") from e
+
+
+def safe_import_np():
+    import numpy as np
+    return np
 
 import numpy as np
 import pickle
@@ -293,6 +304,7 @@ class FaceEngine:
         except Exception as e:
             print(f"Error in extract_face_encoding: {e}")
             return None
+    
     
     def add_face_encoding(self, employee_id: int, encoding: list):
         """

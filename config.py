@@ -1,9 +1,6 @@
 import os
 from datetime import timedelta
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
 
 class Config:
     """Production configuration"""
@@ -11,17 +8,21 @@ class Config:
     # Security
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'attendance-system-production-secret-key-change-in-production'
     
-    # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql+mysqlconnector://root:@localhost/attendance_system'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 300,
-        'pool_pre_ping': True,
-        'max_overflow': 20,
-        'echo': False  # Set True for debugging SQL queries
-    }
+    # Database (Railway compatible)
+    MYSQL_USER = os.getenv("MYSQLUSER")
+    MYSQL_PASSWORD = os.getenv("MYSQLPASSWORD")
+    MYSQL_HOST = os.getenv("MYSQLHOST")
+    MYSQL_PORT = os.getenv("MYSQLPORT", "3306")
+    MYSQL_DB = os.getenv("MYSQLDATABASE")
+
+    if not MYSQL_HOST:
+        raise RuntimeError("MySQL environment variables not set (Railway)")
+
+    SQLALCHEMY_DATABASE_URI = (
+        f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}"
+        f"@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+    )
+
     
     # Face Recognition Settings
     FACE_RECOGNITION_THRESHOLD = 0.6  # Minimum similarity score

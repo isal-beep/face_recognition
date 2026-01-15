@@ -258,227 +258,133 @@ def public_today_attendance():
 
 @app.route('/api/absen', methods=['POST'])
 def absen():
-    import cv2
-    import numpy as np
-    """Handle attendance check-in/check-out - FIXED FOR YOUR MODEL"""
+    """Handle attendance check-in/check-out (Railway safe)"""
     try:
-        print(f"=== ABSEN REQUEST STARTED ===")
-        
+        print("=== ABSEN REQUEST STARTED ===")
+
+        # LAZY SAFE IMPORT
+        try:
+            from face_engine import get_face_engine
+            cv2 = __import__("cv2")
+            import numpy as np
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': 'Face recognition engine not available'
+            }), 503
+
         # 1. CHECK IMAGE
         if 'image' not in request.files:
-            print("[ERROR] No image file")
-            return jsonify({
-                'success': False,
-                'message': 'No image provided'
-            }), 400
-        
+            return jsonify({'success': False, 'message': 'No image provided'}), 400
+
         image_file = request.files['image']
-        print(f"[INFO] Image file: {image_file.filename}")
-        
-        # 2. GET GPS (OPTIONAL)
-        user_lat = request.form.get('latitude', '0')
-        user_lon = request.form.get('longitude', '0')
-        print(f"[INFO] GPS: lat={user_lat}, lon={user_lon}")
-        
-        # 3. READ IMAGE
         image_bytes = image_file.read()
-        if len(image_bytes) == 0:
-            print("[ERROR] Empty image bytes")
-            return jsonify({
-                'success': False,
-                'message': 'Empty image file'
-            }), 400
-        
-        print(f"[INFO] Image size: {len(image_bytes)} bytes")
-        
-        # 4. DECODE IMAGE
+
+        if not image_bytes:
+            return jsonify({'success': False, 'message': 'Empty image'}), 400
+
+        # 2. DECODE IMAGE
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
+
         if image is None:
-            print("[ERROR] Failed to decode image")
+            return jsonify({'success': False, 'message': 'Invalid image'}), 400
+
+        # 3. FACE RECOGNITION
+        try:
+            face_engine = get_face_engine()
+            result = face_engine.process_attendance(image)
+        except Exception as e:
+            print(f"[FACE ERROR] {e}")
             return jsonify({
                 'success': False,
-                'message': 'Invalid image format'
+                'action': 'REJECTED',
+                'message': 'Face recognition failed'
             }), 400
-        
-        print(f"[INFO] Image decoded: {image.shape}")
-        
-        # 5. PROCESS FACE RECOGNITION
-        print("[INFO] Starting face recognition...")
-        try:
-            result = face_engine.process_attendance(image)
-            print(f"[INFO] Face result: {result}")
-        except Exception as face_error:
-            print(f"[ERROR] Face engine failed: {face_error}")
-            # Fallback for testing
-            result = {
-                'employee_id': 1,
-                'similarity': 0.85,
-                'liveness_ok': True
-            }
-            print(f"[INFO] Using fallback: {result}")
-        
-        # 6. CHECK LIVENESS
-        if not result.get('liveness_ok', False):
-            print("[WARNING] Liveness check failed")
+
+        # 4. VALIDATION
+        if not result.get('liveness_ok'):
             return jsonify({
                 'success': False,
                 'action': 'REJECTED',
                 'message': 'Liveness check failed'
             }), 400
-        
-        # 7. GET EMPLOYEE ID
+
         employee_id = result.get('employee_id')
         if not employee_id:
-            print("[WARNING] Face not recognized")
             return jsonify({
                 'success': False,
                 'action': 'REJECTED',
                 'message': 'Face not recognized'
             }), 400
-        
-        print(f"[INFO] Employee ID found: {employee_id}")
-        
-        # 8. GET EMPLOYEE FROM DATABASE
+
+        # 5. DATABASE
         employee = Employee.query.get(employee_id)
         if not employee:
-            print(f"[ERROR] Employee not found in DB: {employee_id}")
-            return jsonify({
-                'success': False,
-                'action': 'REJECTED',
-                'message': 'Employee not found'
-            }), 404
-        
-        print(f"[INFO] Employee found: {employee.nama} (ID: {employee.id})")
-        
-        # 9. GET TODAY'S DATE
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+
         today = date.today()
         now = datetime.now()
-        print(f"[INFO] Today: {today}, Time: {now}")
-        
-        # 10. CHECK EXISTING ATTENDANCE
+
         attendance = Attendance.query.filter_by(
             employee_id=employee.id,
             tanggal=today
         ).first()
-        
-        if attendance:
-            print(f"[INFO] Existing attendance: check_in={attendance.check_in}, check_out={attendance.check_out}")
-        else:
-            print("[INFO] No attendance yet today")
-        
-        # 11. CONVERT GPS
-        try:
-            lat_float = float(user_lat) if user_lat else None
-            lon_float = float(user_lon) if user_lon else None
-        except:
-            lat_float = None
-            lon_float = None
-        
-        # 12. ATTENDANCE LOGIC
+
+        lat = request.form.get('latitude')
+        lon = request.form.get('longitude')
+
+        lat = float(lat) if lat else None
+        lon = float(lon) if lon else None
+
         if not attendance:
-            # CASE 1: CHECK-IN
-            try:
-                new_attendance = Attendance(
-                    employee_id=employee.id,
-                    tanggal=today,
-                    check_in=now,
-                    check_out=None,
-                    status='HADIR',  # Default status
-                    latitude=lat_float,
-                    longitude=lon_float,
-                    similarity=result.get('similarity', 0),
-                    liveness_ok=result.get('liveness_ok', False)
-                )
-                
-                db.session.add(new_attendance)
-                db.session.commit()
-                
-                print(f"[SUCCESS] CHECK-IN: {employee.nama} at {now}")
-                
-                return jsonify({
-                    'success': True,
-                    'action': 'CHECK_IN',
-                    'message': 'Check-in berhasil',
-                    'employee_name': employee.nama,
-                    'employee_id': employee.id,
-                    'time': now.strftime('%H:%M:%S'),
-                    'date': today.strftime('%Y-%m-%d'),
-                    'status': 'HADIR',
-                    'similarity': round(result.get('similarity', 0), 3),
-                    'latitude': lat_float,
-                    'longitude': lon_float
-                }), 200
-                
-            except Exception as db_error:
-                print(f"[ERROR] Database error during check-in: {db_error}")
-                import traceback
-                traceback.print_exc()
-                db.session.rollback()
-                raise
-                
-        elif attendance.check_in and not attendance.check_out:
-            # CASE 2: CHECK-OUT
-            try:
-                attendance.check_out = now
-                attendance.latitude = lat_float  # Update GPS
-                attendance.longitude = lon_float
-                
-                db.session.commit()
-                
-                print(f"[SUCCESS] CHECK-OUT: {employee.nama} at {now}")
-                
-                return jsonify({
-                    'success': True,
-                    'action': 'CHECK_OUT',
-                    'message': 'Check-out berhasil',
-                    'employee_name': employee.nama,
-                    'employee_id': employee.id,
-                    'time': now.strftime('%H:%M:%S'),
-                    'date': today.strftime('%Y-%m-%d'),
-                    'check_in_time': attendance.check_in.strftime('%H:%M:%S'),
-                    'check_out_time': now.strftime('%H:%M:%S'),
-                    'status': attendance.status,
-                    'similarity': round(result.get('similarity', 0), 3),
-                    'latitude': lat_float,
-                    'longitude': lon_float
-                }), 200
-                
-            except Exception as db_error:
-                print(f"[ERROR] Database error during check-out: {db_error}")
-                import traceback
-                traceback.print_exc()
-                db.session.rollback()
-                raise
-                
-        else:
-            # CASE 3: ALREADY COMPLETE
-            print(f"[WARNING] Already completed: {employee.nama}")
-            
+            new_attendance = Attendance(
+                employee_id=employee.id,
+                tanggal=today,
+                check_in=now,
+                status='HADIR',
+                latitude=lat,
+                longitude=lon,
+                similarity=result.get('similarity', 0),
+                liveness_ok=True
+            )
+            db.session.add(new_attendance)
+            db.session.commit()
+
             return jsonify({
-                'success': False,
-                'action': 'REJECTED',
-                'message': 'Anda sudah melakukan check-in dan check-out hari ini',
-                'employee_name': employee.nama,
-                'check_in_time': attendance.check_in.strftime('%H:%M:%S') if attendance.check_in else None,
-                'check_out_time': attendance.check_out.strftime('%H:%M:%S') if attendance.check_out else None
-            }), 400
-            
-    except Exception as e:
-        print(f"=== CRITICAL ERROR ===")
-        print(f"Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        print(f"=== END ERROR ===")
-        
-        db.session.rollback()
-        
+                'success': True,
+                'action': 'CHECK_IN',
+                'employee': employee.nama,
+                'time': now.strftime('%H:%M:%S')
+            })
+
+        if attendance.check_in and not attendance.check_out:
+            attendance.check_out = now
+            attendance.latitude = lat
+            attendance.longitude = lon
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'action': 'CHECK_OUT',
+                'employee': employee.nama,
+                'check_in': attendance.check_in.strftime('%H:%M:%S'),
+                'check_out': now.strftime('%H:%M:%S')
+            })
+
         return jsonify({
             'success': False,
-            'action': 'ERROR',
-            'message': f'Server error: {str(e)[:200]}'
+            'message': 'Attendance already completed'
+        }), 400
+
+    except Exception as e:
+        db.session.rollback()
+        print("[CRITICAL ERROR]", e)
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
         }), 500
+
 
 # ========== OWNER PAGES (LOGIN REQUIRED) ==========
 
