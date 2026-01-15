@@ -28,7 +28,7 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from models import db, User, Employee, ShiftSetting, FaceEncoding, Attendance, LeaveRequest
-from face_engine import face_engine
+from face_engine import get_face_engine
 from flask_migrate import Migrate
 
 # ==============================================================
