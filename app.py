@@ -1,5 +1,6 @@
 # =================== SILENCE TF & MEDIAPIPE ===================
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["GLOG_minloglevel"] = "3"
 os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
@@ -12,7 +13,7 @@ logging.getLogger("mediapipe").setLevel(logging.ERROR)
 # =================== IMPORT YANG DIPERLUKAN ===================
 import cv2
 import numpy as np
-import geopy.distance
+
 from datetime import datetime, date, time, timedelta
 import math
 import json
@@ -1559,10 +1560,10 @@ def debug_config():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    
+
+    port = int(os.environ.get("PORT", 5000))
     app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=True,
-        use_reloader=False
+        host="0.0.0.0",
+        port=port,
+        debug=False
     )
