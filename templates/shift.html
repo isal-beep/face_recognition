@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Shift - Sistem Absensi</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .shift-card { transition: all 0.3s ease; }
+        .shift-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .time-display { font-family: 'Courier New', monospace; }
+        .tolerance-badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; }
+        .modal-overlay { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        
+        /* Modal Scrollable */
+        .modal-scrollable {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .modal-scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .modal-scrollable::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .modal-scrollable::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-clock text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">Manajemen Shift Kerja</h1>
+                        <p class="text-sm text-gray-600">Atur jadwal kerja PAGI dan SIANG</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right hidden md:block">
+                        <p class="text-sm font-medium text-gray-800" id="currentTime">--:--:--</p>
+                        <p class="text-xs text-gray-600" id="currentDate">-- --- ----</p>
+                    </div>
+                    <a href="/dashboard" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition duration-300">
+                        <i class="fas fa-arrow-left mr-2"></i>Kembali ke Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Left Column: Stats & Tools -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Stats Card -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
+                        <i class="fas fa-chart-bar mr-2 text-blue-600"></i> Statistik Shift
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-gray-600">Total Shift</p>
+                                <p class="text-2xl font-bold text-gray-800" id="totalShifts">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clock text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="text-center">
+                                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                    <span class="text-green-600 font-bold" id="activeShifts">0</span>
+                                </div>
+                                <p class="text-xs text-gray-600">Aktif</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                    <span class="text-gray-600 font-bold" id="inactiveShifts">0</span>
+                                </div>
+                                <p class="text-xs text-gray-600">Nonaktif</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Karyawan Terdaftar</span>
+                            <span class="font-medium" id="totalEmployees">0</span>
+                        </div>
+                        <div class="flex justify-between text-sm mt-2">
+                            <span class="text-gray-600">Rata Jam Kerja</span>
+                            <span class="font-medium" id="avgWorkingHours">0h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-bolt mr-2 text-yellow-600"></i> Aksi Cepat
+                    </h3>
+                    
+                    <div class="space-y-3">
+                        <button onclick="showNewShiftModal()" 
+                                class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center">
+                            <i class="fas fa-plus mr-2"></i> Buat Shift Baru
+                        </button>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="useTemplate('pagi')" 
+                                    class="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm">
+                                <i class="fas fa-sun mr-1"></i> Shift Pagi
+                            </button>
+                            <button onclick="useTemplate('siang')" 
+                                    class="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg text-sm">
+                                <i class="fas fa-moon mr-1"></i> Shift Siang
+                            </button>
+                        </div>
+                        
+                        <button onclick="showBulkAssign()" 
+                                class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">
+                            <i class="fas fa-users-cog mr-2"></i> Atur Massal
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Shift Management -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- Header & Search -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">Daftar Shift Kerja</h2>
+                            <p class="text-gray-600">Kelola shift PAGI dan SIANG karyawan</p>
+                        </div>
+                        <div class="mt-4 md:mt-0">
+                            <input type="text" id="searchShift" 
+                                   class="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Cari shift..."
+                                   onkeyup="searchShifts()">
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button onclick="showActiveOnly()" 
+                                class="px-4 py-2 bg-green-100 text-green-800 hover:bg-green-200 rounded-lg text-sm font-medium">
+                            <i class="fas fa-check-circle mr-1"></i> Shift Aktif
+                        </button>
+                        <button onclick="showInactiveOnly()" 
+                                class="px-4 py-2 bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-lg text-sm font-medium">
+                            <i class="fas fa-ban mr-1"></i> Shift Nonaktif
+                        </button>
+                        <button onclick="exportShifts()" 
+                                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
+                            <i class="fas fa-file-export mr-1"></i> Export Data
+                        </button>
+                    </div>
+                    
+                    <div class="text-sm text-gray-600">
+                        Menampilkan <span id="showingCount">0</span> dari <span id="totalCount">0</span> shift
+                    </div>
+                </div>
+
+                <!-- Shifts Container -->
+                <div id="shiftsContainer" class="space-y-4">
+                    <!-- Shifts will be loaded here -->
+                    <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 text-center">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-spinner fa-spin text-gray-400 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Memuat Data Shift</h3>
+                        <p class="text-gray-600">Sedang mengambil data shift kerja...</p>
+                    </div>
+                </div>
+
+                <!-- No Results -->
+                <div id="noResults" class="hidden bg-white rounded-2xl shadow-lg p-8 border border-gray-100 text-center">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-clock text-gray-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Belum Ada Shift</h3>
+                    <p class="text-gray-600 mb-4">Belum ada shift kerja yang dibuat. Mulai dengan membuat shift pertama.</p>
+                    <button onclick="showNewShiftModal()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                        <i class="fas fa-plus mr-2"></i> Buat Shift Pertama
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-600 text-sm">© 2024 Sistem Manajemen Shift. Hak Cipta Dilindungi.</p>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-sync-alt mr-2 text-green-500"></i>
+                        <span>Sinkronisasi Real-time</span>
+                    </div>
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-shield-alt mr-2 text-blue-500"></i>
+                        <span>Validasi Otomatis</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal Add/Edit Shift -->
+    <div id="shiftModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                <!-- Header -->
+                <div class="p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-800" id="modalTitle">Tambah Shift Baru</h3>
+                </div>
+                
+                <!-- Form -->
+                <form id="shiftForm" class="p-6 space-y-4">
+                    <!-- Nama Shift (Dropdown untuk PAGI/SIANG) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama Shift *</label>
+                        <select id="shiftName" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                            <option value="">Pilih jenis shift</option>
+                            <option value="PAGI">Shift Pagi</option>
+                            <option value="SIANG">Shift Siang</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Jam Masuk -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Jam Masuk *</label>
+                        <input type="time" id="startTime" 
+                               class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               required>
+                    </div>
+                    
+                    <!-- Jam Pulang -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Jam Pulang *</label>
+                        <input type="time" id="endTime" 
+                               class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               required>
+                    </div>
+                    
+                    <!-- Toleransi -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Toleransi Keterlambatan (menit)</label>
+                        <input type="number" id="tolerance" min="0" max="60" value="5"
+                               class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Status Aktif</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="shiftActive" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                    </div>
+                    
+                    <!-- Validation Message -->
+                    <div id="validationMessage" class="text-sm pt-2"></div>
+                </form>
+                
+                <!-- Footer -->
+                <div class="p-6 border-t">
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="closeModal('shiftModal')" 
+                                class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium">
+                            Batal
+                        </button>
+                        <button type="button" onclick="saveShift()" id="saveButton"
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                            Simpan Shift
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Action -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 modal-overlay">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content">
+                <div class="p-6 border-b">
+                    <h3 class="text-xl font-bold text-gray-800" id="confirmTitle">Konfirmasi</h3>
+                </div>
+                
+                <div class="p-6">
+                    <p class="text-gray-700 mb-6" id="confirmMessage">Apakah Anda yakin?</p>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button onclick="closeModal('confirmModal')" 
+                                class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium">
+                            Batal
+                        </button>
+                        <button onclick="executeConfirmedAction()" id="confirmActionBtn"
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                            Ya, Lanjutkan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let allShifts = [];
+        let filteredShifts = [];
+        let allEmployees = [];
+        let isEditing = false;
+        let editingShiftId = null;
+        let confirmCallback = null;
+        let confirmActionData = null;
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            
+            // Load data
+            loadShifts();
+            loadEmployees();
+            loadStatistics();
+        });
+        
+        // Update date and time
+        function updateDateTime() {
+            const now = new Date();
+            
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('id-ID', { hour12: false });
+            document.getElementById('currentDate').textContent = 
+                now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        
+        // Load shifts
+        async function loadShifts() {
+            try {
+                const response = await fetch('/api/shifts');
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allShifts = data.data;
+                    filteredShifts = [...allShifts];
+                    
+                    // Update stats
+                    updateShiftStats();
+                    
+                    // Render shifts
+                    renderShifts();
+                    
+                    // Update showing count
+                    updateShowingCount();
+                }
+            } catch (error) {
+                console.error('Error loading shifts:', error);
+                showError('Gagal memuat data shift');
+            }
+        }
+        
+        // Load employees
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/karyawan');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allEmployees = data.data;
+                    document.getElementById('totalEmployees').textContent = allEmployees.length;
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+        
+        // Load statistics
+        function loadStatistics() {
+            try {
+                const totalShifts = allShifts.length;
+                const activeShifts = allShifts.filter(s => s.aktif).length;
+                
+                // Calculate average working hours
+                let totalHours = 0;
+                allShifts.forEach(shift => {
+                    if (shift.jam_masuk && shift.jam_pulang) {
+                        const start = parseTime(shift.jam_masuk);
+                        const end = parseTime(shift.jam_pulang);
+                        const duration = end > start ? end - start : (end + 24*60) - start;
+                        totalHours += duration / 60;
+                    }
+                });
+                
+                const avgHours = totalShifts > 0 ? (totalHours / totalShifts).toFixed(1) : 0;
+                
+                // Update stats
+                document.getElementById('totalShifts').textContent = totalShifts;
+                document.getElementById('activeShifts').textContent = activeShifts;
+                document.getElementById('inactiveShifts').textContent = totalShifts - activeShifts;
+                document.getElementById('avgWorkingHours').textContent = `${avgHours}h`;
+                
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+        
+        // Update shift statistics
+        function updateShiftStats() {
+            const total = allShifts.length;
+            const active = allShifts.filter(s => s.aktif).length;
+            
+            document.getElementById('totalShifts').textContent = total;
+            document.getElementById('activeShifts').textContent = active;
+            document.getElementById('inactiveShifts').textContent = total - active;
+        }
+        
+        // Update showing count
+        function updateShowingCount() {
+            const showing = filteredShifts.length;
+            const total = allShifts.length;
+            
+            document.getElementById('showingCount').textContent = showing;
+            document.getElementById('totalCount').textContent = total;
+        }
+        
+        // Render shifts
+        function renderShifts() {
+            const container = document.getElementById('shiftsContainer');
+            
+            if (filteredShifts.length === 0) {
+                container.innerHTML = '';
+                document.getElementById('noResults').classList.remove('hidden');
+                return;
+            }
+            
+            document.getElementById('noResults').classList.add('hidden');
+            
+            let html = '';
+            
+            filteredShifts.forEach(shift => {
+                const startTime = formatDisplayTime(shift.jam_masuk);
+                const endTime = formatDisplayTime(shift.jam_pulang);
+                const duration = calculateShiftDuration(shift.jam_masuk, shift.jam_pulang);
+                const employeeCount = allEmployees.filter(e => e.shift_id === shift.id).length;
+                
+                html += `
+                    <div class="shift-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+                            <div class="flex items-start md:items-center mb-4 md:mb-0">
+                                <div class="w-12 h-12 ${shift.aktif ? 'bg-blue-100' : 'bg-gray-100'} rounded-lg flex items-center justify-center mr-4">
+                                    <i class="fas fa-clock ${shift.aktif ? 'text-blue-600' : 'text-gray-400'} text-xl"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center">
+                                        <h3 class="text-lg font-bold text-gray-800">${shift.nama === 'PAGI' ? 'Shift Pagi' : 'Shift Siang'}</h3>
+                                        <span class="ml-3 px-3 py-1 ${shift.aktif ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} rounded-full text-xs font-medium">
+                                            ${shift.aktif ? 'AKTIF' : 'NONAKTIF'}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center text-sm text-gray-600 mt-1">
+                                        <i class="fas fa-users mr-1"></i>
+                                        <span>${employeeCount} karyawan</span>
+                                        <span class="mx-2">•</span>
+                                        <i class="far fa-clock mr-1"></i>
+                                        <span>${duration} jam kerja</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="editShift(${shift.id})" 
+                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                                    <i class="fas fa-edit mr-1"></i> Edit
+                                </button>
+                                <button onclick="toggleShiftActivation(${shift.id}, ${shift.aktif})" 
+                                        class="px-4 py-2 ${shift.aktif ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-green-600 hover:bg-green-700 text-white'} rounded-lg text-sm font-medium">
+                                    <i class="fas ${shift.aktif ? 'fa-ban' : 'fa-check'} mr-1"></i> ${shift.aktif ? 'Nonaktifkan' : 'Aktifkan'}
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm text-gray-600 mb-1">Jam Masuk</p>
+                                <p class="text-2xl font-bold text-gray-800 time-display">${startTime}</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm text-gray-600 mb-1">Jam Pulang</p>
+                                <p class="text-2xl font-bold text-gray-800 time-display">${endTime}</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-sm text-gray-600 mb-1">Toleransi</p>
+                                <p class="text-2xl font-bold text-gray-800">${shift.toleransi_menit}<span class="text-lg">m</span></p>
+                                <p class="text-xs text-gray-500">menit keterlambatan</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap justify-between items-center pt-4 border-t">
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="far fa-calendar-alt mr-2"></i>
+                                <span>Dibuat: ${formatDate(shift.dibuat)}</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="confirmDeleteShift(${shift.id})" 
+                                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm">
+                                    <i class="fas fa-trash mr-1"></i> Hapus
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Format display time
+        function formatDisplayTime(timeString) {
+            if (!timeString) return '00:00';
+            return timeString.substring(0, 5);
+        }
+        
+        // Calculate shift duration
+        function calculateShiftDuration(startTime, endTime) {
+            if (!startTime || !endTime) return '0';
+            
+            const start = parseTime(startTime);
+            const end = parseTime(endTime);
+            
+            let duration = end > start ? end - start : (end + 24*60) - start;
+            return (duration / 60).toFixed(1);
+        }
+        
+        // Parse time string to minutes
+        function parseTime(timeString) {
+            if (!timeString) return 0;
+            const [hour, minute, second] = timeString.split(':').map(Number);
+            return hour * 60 + minute;
+        }
+        
+        // Format date
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            } catch (e) {
+                return dateString;
+            }
+        }
+        
+        // Filter shifts
+        function filterShifts() {
+            const searchTerm = document.getElementById('searchShift').value.toLowerCase();
+            
+            filteredShifts = allShifts.filter(shift => {
+                // Filter by search term
+                if (searchTerm) {
+                    const shiftName = shift.nama === 'PAGI' ? 'pagi' : 'siang';
+                    if (!shiftName.includes(searchTerm) && 
+                        !shift.jam_masuk.includes(searchTerm) &&
+                        !shift.jam_pulang.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+            
+            renderShifts();
+            updateShowingCount();
+        }
+        
+        // Search shifts
+        function searchShifts() {
+            filterShifts();
+        }
+        
+        // Show active only
+        function showActiveOnly() {
+            filteredShifts = allShifts.filter(shift => shift.aktif);
+            renderShifts();
+            updateShowingCount();
+        }
+        
+        // Show inactive only
+        function showInactiveOnly() {
+            filteredShifts = allShifts.filter(shift => !shift.aktif);
+            renderShifts();
+            updateShowingCount();
+        }
+        
+        // Export shifts
+        function exportShifts() {
+            window.location.href = '/api/laporan?type=shifts&format=excel';
+        }
+        
+        // Show new shift modal
+        function showNewShiftModal() {
+            isEditing = false;
+            editingShiftId = null;
+            
+            document.getElementById('modalTitle').textContent = 'Buat Shift Baru';
+            document.getElementById('saveButton').textContent = 'Simpan Shift';
+            
+            // Reset form
+            document.getElementById('shiftForm').reset();
+            document.getElementById('shiftName').value = '';
+            document.getElementById('startTime').value = '08:00';
+            document.getElementById('endTime').value = '17:00';
+            document.getElementById('tolerance').value = '5';
+            document.getElementById('shiftActive').checked = true;
+            
+            showModal('shiftModal');
+        }
+        
+        // Edit shift
+        function editShift(shiftId) {
+            const shift = allShifts.find(s => s.id === shiftId);
+            if (!shift) return;
+            
+            isEditing = true;
+            editingShiftId = shiftId;
+            
+            document.getElementById('modalTitle').textContent = 'Edit Shift';
+            document.getElementById('saveButton').textContent = 'Update Shift';
+            
+            // Fill form
+            document.getElementById('shiftName').value = shift.nama;
+            document.getElementById('startTime').value = shift.jam_masuk.substring(0, 5);
+            document.getElementById('endTime').value = shift.jam_pulang.substring(0, 5);
+            document.getElementById('tolerance').value = shift.toleransi_menit;
+            document.getElementById('shiftActive').checked = shift.aktif;
+            
+            showModal('shiftModal');
+        }
+        
+        // Save shift
+        async function saveShift() {
+            const name = document.getElementById('shiftName').value;
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            const tolerance = document.getElementById('tolerance').value;
+            const isActive = document.getElementById('shiftActive').checked;
+            
+            // Validation
+            if (!name || !startTime || !endTime) {
+                showError('Semua field wajib diisi');
+                return;
+            }
+            
+            if (parseInt(tolerance) < 0 || parseInt(tolerance) > 60) {
+                showError('Toleransi harus antara 0-60 menit');
+                return;
+            }
+            
+            try {
+                const shiftData = {
+                    nama: name,
+                    jam_masuk: startTime + ':00',
+                    jam_pulang: endTime + ':00',
+                    toleransi_menit: parseInt(tolerance),
+                    aktif: isActive
+                };
+                
+                let url = '/api/shift';
+                let method = 'POST';
+                
+                if (isEditing) {
+                    url = `/api/shift/${editingShiftId}`;
+                    method = 'PUT';
+                }
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(shiftData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess(isEditing ? 'Shift berhasil diperbarui' : 'Shift berhasil dibuat');
+                    closeModal('shiftModal');
+                    loadShifts();
+                    loadStatistics();
+                } else {
+                    showError(data.message || 'Terjadi kesalahan');
+                }
+            } catch (error) {
+                console.error('Error saving shift:', error);
+                showError('Gagal menyimpan shift');
+            }
+        }
+        
+        // Toggle shift activation
+        async function toggleShiftActivation(shiftId, currentStatus) {
+    try {
+        const response = await fetch(`/api/shift/${shiftId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                aktif: !currentStatus
+            })
+        });
+
+        // ✅ WAJIB: cek response dulu
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Server error:', text);
+            showError('Server error saat mengubah status shift');
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess(!currentStatus ? 'Shift diaktifkan' : 'Shift dinonaktifkan');
+            loadShifts();
+            loadStatistics();
+        } else {
+            showError(data.message || 'Gagal mengubah status shift');
+        }
+    } catch (error) {
+        console.error('Error toggling shift:', error);
+        showError('Gagal mengubah status shift');
+    }
+}
+
+        
+        // Confirm delete shift
+        function confirmDeleteShift(shiftId) {
+            console.log(`Confirm delete shift ${shiftId}`);
+            const shift = allShifts.find(s => s.id === shiftId);
+            if (!shift) return;
+            
+            const employeeCount = allEmployees.filter(e => e.shift_id === shiftId).length;
+            
+            if (employeeCount > 0) {
+                showError(`Tidak dapat menghapus shift yang digunakan oleh ${employeeCount} karyawan`);
+                return;
+            }
+            
+            confirmActionData = shiftId;
+            confirmCallback = deleteShift;
+            
+            document.getElementById('confirmTitle').textContent = 'Konfirmasi Hapus';
+            document.getElementById('confirmMessage').textContent = `Apakah Anda yakin ingin menghapus ${shift.nama === 'PAGI' ? 'Shift Pagi' : 'Shift Siang'}?`;
+            document.getElementById('confirmActionBtn').className = 'px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium';
+            document.getElementById('confirmActionBtn').textContent = 'Ya, Hapus';
+            
+            showModal('confirmModal');
+        }
+        
+        // Delete shift
+async function deleteShift(shiftId) {
+    try {
+        console.log(`Deleting shift ${shiftId}...`);
+        
+        const response = await fetch(`/api/shift/${shiftId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        console.log('Delete response:', data);
+        
+        if (data.success) {
+            showSuccess('Shift berhasil dihapus');
+            loadShifts(); // Reload data
+            loadStatistics(); // Update stats
+        } else {
+            showError(data.message || 'Gagal menghapus shift');
+        }
+    } catch (error) {
+        console.error('Error deleting shift:', error);
+        showError('Gagal menghapus shift');
+    }
+}
+        
+        // Use template
+        function useTemplate(templateType) {
+            showNewShiftModal();
+            
+            setTimeout(() => {
+                let startTime, endTime, shiftName;
+                
+                switch(templateType) {
+                    case 'pagi':
+                        startTime = '08:00';
+                        endTime = '17:00';
+                        shiftName = 'PAGI';
+                        break;
+                    case 'siang':
+                        startTime = '13:00';
+                        endTime = '22:00';
+                        shiftName = 'SIANG';
+                        break;
+                }
+                
+                document.getElementById('shiftName').value = shiftName;
+                document.getElementById('startTime').value = startTime;
+                document.getElementById('endTime').value = endTime;
+                document.getElementById('tolerance').value = '5';
+                document.getElementById('shiftActive').checked = true;
+            }, 100);
+        }
+        
+        // Show bulk assign modal (simplified)
+        function showBulkAssign() {
+            alertModal('Penugasan Massal', `
+                <div class="space-y-4">
+                    <p class="text-gray-700">Fitur penugasan massal akan segera hadir.</p>
+                    <p class="text-sm text-gray-600">Untuk saat ini, Anda dapat mengatur shift karyawan satu per satu melalui halaman karyawan.</p>
+                </div>
+            `);
+        }
+        
+        // Show modal
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Alert modal
+        function alertModal(title, content) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content">
+                    <div class="p-6 border-b">
+                        <h3 class="text-xl font-bold text-gray-800">${title}</h3>
+                    </div>
+                    <div class="p-6">${content}</div>
+                    <div class="p-6 border-t flex justify-end">
+                        <button onclick="this.closest('.modal-overlay').remove()" 
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // Execute confirmed action
+        function executeConfirmedAction() {
+            console.log('Executing confirmed action:', confirmCallback, confirmActionData);
+            if (confirmCallback && confirmActionData) {
+                confirmCallback(confirmActionData);
+            }
+            closeModal('confirmModal');
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const success = document.createElement('div');
+            success.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg z-50';
+            success.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(success);
+            
+            setTimeout(() => {
+                success.remove();
+            }, 3000);
+        }
+        
+        // Show error message
+        function showError(message) {
+            const error = document.createElement('div');
+            error.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg z-50';
+            error.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(error);
+            
+            setTimeout(() => {
+                error.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

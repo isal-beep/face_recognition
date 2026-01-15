@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilih Karyawan untuk Registrasi Wajah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-users text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">Registrasi Wajah Karyawan</h1>
+                        <p class="text-sm text-gray-600">Pilih karyawan untuk registrasi wajah</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium">
+                        <i class="fas fa-arrow-left mr-2"></i>Dashboard
+                    </a>
+                    <a href="/karyawan" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                        <i class="fas fa-users mr-2"></i>Manajemen Karyawan
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Info Card -->
+        <div class="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <div class="flex items-center">
+                <i class="fas fa-info-circle text-blue-600 text-2xl mr-4"></i>
+                <div>
+                    <h3 class="font-semibold text-blue-800">Informasi Registrasi Wajah</h3>
+                    <p class="text-blue-700 mt-1">
+                        • Pilih karyawan yang akan diregistrasi wajahnya<br>
+                        • Sistem membutuhkan minimal 1 foto wajah yang jelas<br>
+                        • Registrasi wajah akan digunakan untuk sistem absensi
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="w-full md:w-auto">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cari Karyawan</label>
+                    <div class="relative">
+                        <input type="text" id="searchEmployee" 
+                               class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Cari berdasarkan nama, kode, atau email...">
+                        <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Filter Status</label>
+                        <select id="filterStatus" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="all">Semua Status</option>
+                            <option value="registered">Sudah Diregistrasi</option>
+                            <option value="not_registered">Belum Diregistrasi</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Urutkan</label>
+                        <select id="sortBy" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="name">Nama A-Z</option>
+                            <option value="name_desc">Nama Z-A</option>
+                            <option value="code">Kode</option>
+                            <option value="date">Tanggal Bergabung</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employees Table -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-800">Daftar Karyawan</h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Kode</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Nama</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Email</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Shift</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Status Wajah</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Bergabung</th>
+                            <th class="py-3 px-6 text-left text-sm font-medium text-gray-500">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="employeeTable">
+                        <!-- Data will be loaded here -->
+                        <tr id="loadingRow">
+                            <td colspan="7" class="py-12 text-center">
+                                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                                <p class="text-gray-600 mt-2">Memuat data karyawan...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="px-6 py-4 border-t bg-gray-50">
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-600">
+                        <span id="employeeCount">0</span> karyawan ditemukan
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="refreshEmployeeList()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Instructions -->
+        <div class="mt-8 bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+            <h4 class="font-semibold text-yellow-800 mb-3 flex items-center">
+                <i class="fas fa-lightbulb mr-2"></i>Panduan Registrasi Wajah
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h5 class="font-medium text-yellow-700 mb-2">Yang Harus Dilakukan:</h5>
+                    <ul class="text-sm text-yellow-600 space-y-1">
+                        <li class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>Pilih karyawan yang belum diregistrasi wajahnya</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>Pastikan karyawan hadir di tempat</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>Siapkan kamera dengan pencahayaan baik</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>Ambil foto dengan wajah menghadap kamera</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="font-medium text-yellow-700 mb-2">Yang Harus Dihindari:</h5>
+                    <ul class="text-sm text-yellow-600 space-y-1">
+                        <li class="flex items-center">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            <span>Foto dengan pencahayaan buruk</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            <span>Wajah tertutup kacamata hitam/topi</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            <span>Foto dari jarak terlalu jauh/dekat</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            <span>Ekspresi wajah berlebihan</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript -->
+    <script>
+        // Load employees on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEmployees();
+            
+            // Add event listeners for search and filter
+            document.getElementById('searchEmployee').addEventListener('input', filterEmployees);
+            document.getElementById('filterStatus').addEventListener('change', filterEmployees);
+            document.getElementById('sortBy').addEventListener('change', filterEmployees);
+        });
+
+        // Load employees from API
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/karyawan-with-face-status');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('employeeTable');
+                const loadingRow = document.getElementById('loadingRow');
+                const countEl = document.getElementById('employeeCount');
+                
+                if (loadingRow) {
+                    loadingRow.remove();
+                }
+                
+                if (data.success && data.data.length > 0) {
+                    // Store employees globally for filtering
+                    window.employeesData = data.data;
+                    
+                    // Render initial table
+                    renderEmployees(data.data);
+                    countEl.textContent = data.data.length;
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="py-12 text-center">
+                                <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-users text-gray-400 text-2xl"></i>
+                                </div>
+                                <p class="text-gray-600 font-medium">Belum ada data karyawan</p>
+                                <p class="text-sm text-gray-500 mt-1">Tambahkan karyawan terlebih dahulu</p>
+                                <a href="/karyawan" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                                    <i class="fas fa-user-plus mr-2"></i>Tambah Karyawan
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                    countEl.textContent = '0';
+                }
+                
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                document.getElementById('employeeTable').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-red-600">
+                            <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                            <p>Gagal memuat data karyawan</p>
+                            <button onclick="loadEmployees()" class="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm">
+                                <i class="fas fa-redo mr-1"></i> Coba Lagi
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Render employees to table
+        function renderEmployees(employees) {
+            const tbody = document.getElementById('employeeTable');
+            const countEl = document.getElementById('employeeCount');
+            
+            let html = '';
+            
+            employees.forEach(employee => {
+                const joinDate = new Date(employee.dibuat);
+                const formattedDate = joinDate.toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+                
+                html += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-4 px-6">
+                            <span class="font-mono text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                ${employee.kode}
+                            </span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="font-medium text-gray-900">${employee.nama}</div>
+                            <div class="text-xs text-gray-500">ID: ${employee.id}</div>
+                        </td>
+                        <td class="py-4 px-6">${employee.email || '-'}</td>
+                        <td class="py-4 px-6">
+                            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
+                                ${employee.shift_id || '-'}
+                            </span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${employee.face_registered ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                <i class="fas ${employee.face_registered ? 'fa-check-circle' : 'fa-times-circle'} mr-1"></i>
+                                ${employee.face_registered ? 'Sudah' : 'Belum'}
+                            </span>
+                        </td>
+                        <td class="py-4 px-6 text-sm text-gray-600">
+                            ${formattedDate}
+                        </td>
+                        <td class="py-4 px-6">
+                            <button onclick="registerFace(${employee.id})" 
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition duration-300">
+                                <i class="fas fa-camera mr-2"></i>Registrasi Wajah
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+            countEl.textContent = employees.length;
+        }
+
+        // Filter and sort employees
+        function filterEmployees() {
+            if (!window.employeesData) return;
+            
+            const searchTerm = document.getElementById('searchEmployee').value.toLowerCase();
+            const filterStatus = document.getElementById('filterStatus').value;
+            const sortBy = document.getElementById('sortBy').value;
+            
+            let filtered = window.employeesData.filter(employee => {
+                // Search filter
+                const matchesSearch = 
+                    employee.nama.toLowerCase().includes(searchTerm) ||
+                    employee.kode.toLowerCase().includes(searchTerm) ||
+                    (employee.email && employee.email.toLowerCase().includes(searchTerm));
+                
+                // Status filter
+                let matchesStatus = true;
+                if (filterStatus === 'registered') {
+                    matchesStatus = employee.face_registered;
+                } else if (filterStatus === 'not_registered') {
+                    matchesStatus = !employee.face_registered;
+                }
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            // Sort filtered results
+            filtered.sort((a, b) => {
+                switch (sortBy) {
+                    case 'name_desc':
+                        return b.nama.localeCompare(a.nama);
+                    case 'code':
+                        return a.kode.localeCompare(b.kode);
+                    case 'date':
+                        return new Date(b.dibuat) - new Date(a.dibuat);
+                    default: // 'name'
+                        return a.nama.localeCompare(b.nama);
+                }
+            });
+            
+            renderEmployees(filtered);
+        }
+
+        // Open registration page for specific employee
+        function registerFace(employeeId) {
+            window.open(`/register-face?employee_id=${employeeId}`, '_blank');
+        }
+
+        // Refresh employee list
+        function refreshEmployeeList() {
+            const refreshBtn = event?.target?.closest('button');
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+            
+            loadEmployees();
+            
+            if (refreshBtn) {
+                setTimeout(() => {
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

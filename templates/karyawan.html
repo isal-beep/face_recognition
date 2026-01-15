@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Karyawan - Sistem Absensi Wajah</title>
+    <!-- ✅ FIXED: Gunakan Tailwind CDN v3 yang kompatibel -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* ✅ FIXED: Scrollable container untuk form panjang */
+        .scrollable-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .scrollable-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollable-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scrollable-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .scrollable-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Kamera styling */
+        #cameraVideo {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        #capturedImage {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            display: none;
+        }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .camera-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        /* Styling untuk table */
+        .employee-table th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+        
+        /* Modal edit styling */
+        #editEmployeeModal {
+            transition: all 0.3s ease;
+        }
+        
+        /* Custom scrollbar untuk table */
+        .table-scroll-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .table-scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .table-scroll-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .table-scroll-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        .table-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-users text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">Manajemen Karyawan</h1>
+                        <p class="text-sm text-gray-600">Kelola data karyawan dan registrasi wajah</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/dashboard" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium">
+                        <i class="fas fa-arrow-left mr-2"></i>Kembali ke Dashboard
+                    </a>
+                    <button onclick="showAddEmployeeModal()" 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                        <i class="fas fa-user-plus mr-2"></i>Tambah Karyawan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- ✅ FIXED: Employee Table dengan Scrollable Container -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Daftar Karyawan</h2>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <input type="text" id="searchEmployee" 
+                                   placeholder="Cari nama/kode..." 
+                                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                        <button onclick="refreshEmployeeList()" class="p-2 text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ✅ FIXED: Scrollable Table Container -->
+            <div class="table-scroll-container">
+                <table class="w-full employee-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Kode</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Nama</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Email</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Shift</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Wajah</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Status</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Bergabung</th>
+                            <th class="py-3 px-4 text-left text-sm font-medium text-gray-500">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="employeeTableBody">
+                        <!-- Data akan diisi oleh JavaScript -->
+                        <tr id="loadingRow">
+                            <td colspan="8" class="py-8 text-center">
+                                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                                <p class="text-gray-600 mt-2">Memuat data karyawan...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Footer -->
+            <div class="p-4 border-t bg-gray-50">
+                <div class="flex justify-between items-center text-sm text-gray-600">
+                    <div>
+                        <span id="employeeCount">0</span> karyawan ditemukan
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="exportEmployeeData()" class="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
+                            <i class="fas fa-file-export mr-1"></i>Export
+                        </button>
+                        <button onclick="showFaceCacheStats()" class="px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">
+                            <i class="fas fa-database mr-1"></i>Cache Wajah
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ✅ FIXED: Modal Add Employee (DIPERBAIKI STRUKTUR) -->
+    <div id="addEmployeeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <!-- Modal Header (tetap di atas) -->
+            <div class="p-6 border-b flex-shrink-0">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold text-gray-800">Tambah Karyawan Baru</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- ✅ FIXED: Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="addEmployeeForm">
+                    <!-- Nama Lengkap -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Nama Lengkap <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="nama" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Masukkan nama lengkap karyawan">
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                        </label>
+                        <input type="email" name="email"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="email@example.com (opsional)">
+                        <p class="text-xs text-gray-500 mt-1">Digunakan untuk notifikasi dan login</p>
+                    </div>
+
+                    <!-- ✅ FIXED: Shift Selection (HANYA PAGI dan SIANG) -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Shift <span class="text-red-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <input type="radio" id="shift_pagi" name="shift_id" value="1" required class="hidden peer">
+                                <label for="shift_pagi" 
+                                       class="block p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-sun text-yellow-600"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">Shift Pagi</p>
+                                            <p class="text-sm text-gray-600">08:00 - 17:00</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div>
+                                <input type="radio" id="shift_siang" name="shift_id" value="2" required class="hidden peer">
+                                <label for="shift_siang" 
+                                       class="block p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                            <i class="fas fa-moon text-blue-600"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">Shift Siang</p>
+                                            <p class="text-sm text-gray-600">13:00 - 22:00</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+
+                    <!-- Jenis Kelamin -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Jenis Kelamin
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <input type="radio" id="jk_l" name="jenis_kelamin" value="L" class="hidden peer">
+                                <label for="jk_l" 
+                                       class="block p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 peer-checked:border-blue-500 peer-checked:bg-blue-50 text-center">
+                                    <i class="fas fa-male text-2xl text-blue-600 mb-2"></i>
+                                    <p class="font-medium">Laki-laki</p>
+                                </label>
+                            </div>
+                            <div>
+                                <input type="radio" id="jk_p" name="jenis_kelamin" value="P" class="hidden peer">
+                                <label for="jk_p" 
+                                       class="block p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 peer-checked:border-blue-500 peer-checked:bg-blue-50 text-center">
+                                    <i class="fas fa-female text-2xl text-pink-600 mb-2"></i>
+                                    <p class="font-medium">Perempuan</p>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ✅ FIXED: Face Registration Section dengan Kamera Langsung -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="text-sm font-medium text-gray-700">
+                                <i class="fas fa-camera mr-2 text-blue-600"></i>Registrasi Wajah (Opsional)
+                            </label>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Rekomendasi</span>
+                        </div>
+                        
+                        <div class="border-2 border-dashed border-blue-300 rounded-lg p-6 bg-blue-50">
+                            <div class="text-center mb-4">
+                                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <i class="fas fa-user text-blue-600"></i>
+                                </div>
+                                <p class="text-sm text-blue-700 mb-2">Ambil foto wajah langsung dari kamera</p>
+                            </div>
+                            
+                            <!-- Kamera Container -->
+                            <div id="cameraSection" class="space-y-4">
+                                <!-- Live Camera Feed -->
+                                <div class="camera-container">
+                                    <video id="cameraVideo" autoplay playsinline></video>
+                                    <img id="capturedImage" alt="Foto yang diambil">
+                                    <div class="camera-controls">
+                                        <button type="button" onclick="startCamera()" 
+                                                id="startCameraBtn"
+                                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                            <i class="fas fa-video mr-2"></i>Aktifkan Kamera
+                                        </button>
+                                        <button type="button" onclick="takePhoto()" 
+                                                id="captureBtn" disabled
+                                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                            <i class="fas fa-camera mr-2"></i>Ambil Foto
+                                        </button>
+                                        <button type="button" onclick="retakePhoto()" 
+                                                id="retakeBtn" disabled
+                                                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">
+                                            <i class="fas fa-redo mr-2"></i>Ambil Ulang
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Petunjuk Pengambilan Foto -->
+                                <div class="bg-white p-4 rounded-lg border">
+                                    <h4 class="font-medium text-gray-700 mb-2 flex items-center">
+                                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                                        Petunjuk Foto Wajah yang Baik
+                                    </h4>
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-check text-green-500 mr-2"></i>
+                                            <span>Cahaya cukup</span>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <i class="fas fa-check text-green-500 mr-2"></i>
+                                            <span>Wajah menghadap kamera</span>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <i class="fas fa-check text-green-500 mr-2"></i>
+                                            <span>Tidak memakai kacamata hitam</span>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <i class="fas fa-check text-green-500 mr-2"></i>
+                                            <span>Ekspresi netral</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hidden input untuk menyimpan foto -->
+                                <input type="hidden" name="face_image_data" id="faceImageData">
+                            </div>
+                        </div>
+                        
+                        <p class="text-xs text-gray-500 mt-3">
+                            <i class="fas fa-lightbulb mr-1 text-yellow-500"></i>
+                            Registrasi wajah sekarang akan mempercepat proses absensi nanti
+                        </p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-6 border-t bg-gray-50 flex-shrink-0">
+                <div class="flex justify-between">
+                    <button type="button" onclick="closeModal()" 
+                            class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition">
+                        Batal
+                    </button>
+                    <button onclick="submitEmployeeForm()" 
+                            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition flex items-center">
+                        <i class="fas fa-save mr-2"></i>Simpan Karyawan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ FIXED: Modal Edit Karyawan -->
+    <div id="editEmployeeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="p-6 border-b flex-shrink-0">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-800">Edit Data Karyawan</h3>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+                            Perbarui informasi karyawan
+                        </p>
+                    </div>
+                    <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ✅ FIXED: Scrollable Form Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="editEmployeeForm">
+                    <input type="hidden" id="edit_id">
+                    <input type="hidden" id="edit_kode">
+                    
+                    <!-- Kode Karyawan (readonly) -->
+                    <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-key text-gray-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">Kode Karyawan</p>
+                                <p id="edit_kode_display" class="text-lg font-mono text-gray-700 mt-1"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nama Lengkap -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Nama Lengkap <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="edit_nama" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Masukkan nama lengkap karyawan">
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                        </label>
+                        <input type="email" id="edit_email"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="email@example.com">
+                        <p class="text-xs text-gray-500 mt-1">Digunakan untuk notifikasi dan login</p>
+                    </div>
+
+                    
+
+                    <!-- Shift -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Shift <span class="text-red-500">*</span>
+                        </label>
+                        <select id="edit_shift_id" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Pilih Shift</option>
+                            <option value="1">Shift Pagi (08:00 - 17:00)</option>
+                            <option value="2">Shift Siang (13:00 - 22:00)</option>
+                        </select>
+                    </div>
+
+                    <!-- Jenis Kelamin -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Jenis Kelamin
+                        </label>
+                        <select id="edit_jenis_kelamin"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="L">Laki-laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Aktif -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Status
+                        </label>
+                        <select id="edit_aktif"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="true">Aktif</option>
+                            <option value="false">Nonaktif</option>
+                        </select>
+                    </div>
+
+                    <!-- Informasi Registrasi -->
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-camera text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-blue-800">Registrasi Wajah</p>
+                                <p id="edit_face_status" class="text-sm text-blue-600 mt-1">Loading status...</p>
+                                <button type="button" onclick="registerFaceFromEdit()" 
+                                        class="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
+                                    <i class="fas fa-camera mr-2"></i>Registrasi/Update Wajah
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-6 border-t bg-gray-50 flex-shrink-0">
+                <div class="flex justify-between">
+                    <button type="button" onclick="closeEditModal()" 
+                            class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition">
+                        Batal
+                    </button>
+                    <div class="flex space-x-3">
+                        <button onclick="confirmDeleteEmployee()" 
+                                class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition flex items-center">
+                            <i class="fas fa-trash mr-2"></i>Hapus
+                        </button>
+                        <button onclick="saveEmployeeEdit()" 
+                                class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition flex items-center">
+                            <i class="fas fa-save mr-2"></i>Simpan Perubahan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ FIXED: Modal Confirm Delete -->
+    <div id="confirmDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-semibold text-gray-800">Konfirmasi Hapus</h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-800">Hapus Karyawan?</p>
+                        <p class="text-sm text-gray-600">Data karyawan akan dinonaktifkan dan tidak dapat diakses.</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-700 mb-6">
+                    Apakah Anda yakin ingin menghapus karyawan ini? Tindakan ini akan menonaktifkan akun karyawan.
+                </p>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeConfirmDeleteModal()" 
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">
+                        Batal
+                    </button>
+                    <button onclick="deleteEmployee()" 
+                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        Ya, Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ FIXED: Modal Face Cache Stats -->
+    <div id="faceCacheModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-800">Statistik Cache Wajah</h3>
+                    <button onclick="closeFaceCacheModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Total Wajah Tersimpan</span>
+                        <span class="font-medium" id="cacheTotal">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Karyawan Terdaftar</span>
+                        <span class="font-medium" id="cacheRegistered">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Status Integritas</span>
+                        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full" id="cacheIntegrity">Valid</span>
+                    </div>
+                </div>
+                <div class="mt-6 pt-4 border-t">
+                    <div class="text-sm text-gray-600">
+                        <i class="fas fa-info-circle mr-2 text-blue-500"></i>
+                        Cache wajah disimpan di memori untuk mempercepat deteksi.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Variabel kamera
+        let cameraStream = null;
+        let capturedPhoto = null;
+        let currentEditingEmployeeId = null;
+        
+        // Load employees on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEmployees();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search functionality
+            const searchInput = document.getElementById('searchEmployee');
+            if (searchInput) {
+                searchInput.addEventListener('input', searchEmployees);
+            }
+            
+            // Close modal on ESC key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                    closeEditModal();
+                    closeConfirmDeleteModal();
+                    closeFaceCacheModal();
+                }
+            });
+
+            // Prevent form submission on Enter
+            const addForm = document.getElementById('addEmployeeForm');
+            if (addForm) {
+                addForm.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.target.type !== 'textarea') {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            const editForm = document.getElementById('editEmployeeForm');
+            if (editForm) {
+                editForm.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                        e.preventDefault();
+                        if (e.target.tagName !== 'BUTTON') {
+                            saveEmployeeEdit();
+                        }
+                    }
+                });
+            }
+        }
+
+        // Modal functions
+        function showAddEmployeeModal() {
+            document.getElementById('addEmployeeModal').classList.remove('hidden');
+            document.getElementById('addEmployeeForm').reset();
+            resetCamera();
+        }
+
+        function closeModal() {
+            document.getElementById('addEmployeeModal').classList.add('hidden');
+            stopCamera();
+        }
+
+        // ✅ FIXED: Fungsi untuk membuka modal edit karyawan
+        async function editEmployee(employeeId) {
+            currentEditingEmployeeId = employeeId;
+            
+            try {
+                // Ambil data karyawan dari API
+                const response = await fetch('/api/karyawan');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const employee = data.data.find(emp => emp.id == employeeId);
+                    
+                    if (employee) {
+                        // Isi data ke modal edit
+                        document.getElementById('edit_id').value = employee.id;
+                        document.getElementById('edit_kode').value = employee.kode;
+                        document.getElementById('edit_kode_display').textContent = employee.kode;
+                        document.getElementById('edit_nama').value = employee.nama;
+                        document.getElementById('edit_email').value = employee.email || '';
+                        document.getElementById('edit_shift_id').value = employee.shift_id || '';
+                        document.getElementById('edit_aktif').value = employee.aktif ? 'true' : 'false';
+                        
+                        // Cek status registrasi wajah
+                        const faceStatus = await checkFaceRegistration(employeeId);
+                        document.getElementById('edit_face_status').textContent = faceStatus;
+                        
+                        // Tampilkan modal
+                        document.getElementById('editEmployeeModal').classList.remove('hidden');
+                    } else {
+                        showNotification('error', 'Karyawan tidak ditemukan');
+                    }
+                } else {
+                    showNotification('error', 'Gagal mengambil data karyawan');
+                }
+            } catch (error) {
+                console.error('Error loading employee data:', error);
+                showNotification('error', 'Terjadi kesalahan saat mengambil data');
+            }
+        }
+
+        // ✅ FIXED: Fungsi untuk mengecek status registrasi wajah
+        async function checkFaceRegistration(employeeId) {
+            try {
+                const response = await fetch('/api/karyawan-with-face-status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const employee = data.data.find(emp => emp.id == employeeId);
+                    if (employee) {
+                        return employee.face_registered ? 'Wajah sudah terdaftar' : 'Wajah belum terdaftar';
+                    }
+                }
+                return 'Status tidak diketahui';
+            } catch (error) {
+                return 'Error checking status';
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editEmployeeModal').classList.add('hidden');
+            currentEditingEmployeeId = null;
+        }
+
+        // ✅ FIXED: Fungsi untuk menyimpan perubahan data karyawan
+        async function saveEmployeeEdit() {
+            const id = document.getElementById('edit_id').value;
+            const kode = document.getElementById('edit_kode').value;
+            
+            const formData = {
+                nama: document.getElementById('edit_nama').value,
+                email: document.getElementById('edit_email').value || null,
+                shift_id: document.getElementById('edit_shift_id').value || null,
+                aktif: document.getElementById('edit_aktif').value === 'true'
+            };
+
+            // Validasi
+            if (!formData.nama) {
+                showNotification('error', 'Nama wajib diisi!');
+                return;
+            }
+
+            // Show loading state
+            const saveBtn = document.querySelector('button[onclick="saveEmployeeEdit()"]');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyimpan...';
+            saveBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/karyawan/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('success', 'Data karyawan berhasil diperbarui!');
+                    
+                    // Tutup modal dan refresh data
+                    setTimeout(() => {
+                        closeEditModal();
+                        loadEmployees();
+                    }, 1000);
+                } else {
+                    showNotification('error', `Error: ${data.message}`);
+                }
+            } catch (error) {
+                showNotification('error', 'Terjadi kesalahan jaringan');
+                console.error('Error:', error);
+            } finally {
+                // Restore button state
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            }
+        }
+
+        // ✅ FIXED: Fungsi konfirmasi hapus
+        function confirmDeleteEmployee() {
+            if (!currentEditingEmployeeId) return;
+            
+            // Tampilkan modal konfirmasi
+            document.getElementById('confirmDeleteModal').classList.remove('hidden');
+        }
+
+        function closeConfirmDeleteModal() {
+            document.getElementById('confirmDeleteModal').classList.add('hidden');
+        }
+
+        // ✅ FIXED: Fungsi untuk menghapus karyawan
+        async function deleteEmployee() {
+            if (!currentEditingEmployeeId) return;
+            
+            try {
+                const response = await fetch(`/api/karyawan/${currentEditingEmployeeId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('success', 'Karyawan berhasil dinonaktifkan!');
+                    closeEditModal();
+                    closeConfirmDeleteModal();
+                    setTimeout(() => {
+                        loadEmployees();
+                    }, 500);
+                } else {
+                    showNotification('error', `Error: ${data.message}`);
+                }
+            } catch (error) {
+                showNotification('error', 'Terjadi kesalahan saat menghapus');
+                console.error('Error:', error);
+            }
+        }
+
+        // Fungsi Kamera
+        async function startCamera() {
+            try {
+                // Permisi akses kamera
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }, 
+                    audio: false 
+                });
+                
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = cameraStream;
+                
+                // Update button states
+                document.getElementById('startCameraBtn').disabled = true;
+                document.getElementById('startCameraBtn').classList.add('hidden');
+                document.getElementById('captureBtn').disabled = false;
+                
+                showNotification('success', 'Kamera aktif. Posisikan wajah di tengah frame.');
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                showNotification('error', 'Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
+                
+                // Fallback ke input file
+                document.getElementById('cameraSection').innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-video-slash text-red-500 text-3xl mb-3"></i>
+                        <p class="text-red-600 font-medium mb-2">Kamera tidak dapat diakses</p>
+                        <p class="text-sm text-gray-600 mb-4">Silakan upload foto wajah dari file</p>
+                        <input type="file" name="face_image_file" accept="image/*" capture="user"
+                               class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50">
+                    </div>
+                `;
+            }
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+        }
+
+        function takePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            // Set canvas size sesuai video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Gambar frame video ke canvas (mirror)
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Dapatkan data URL
+            capturedPhoto = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Tampilkan foto yang diambil
+            const capturedImage = document.getElementById('capturedImage');
+            capturedImage.src = capturedPhoto;
+            capturedImage.style.display = 'block';
+            
+            // Sembunyikan video
+            video.style.display = 'none';
+            
+            // Update button states
+            document.getElementById('captureBtn').classList.add('hidden');
+            document.getElementById('retakeBtn').disabled = false;
+            
+            // Simpan ke hidden input
+            document.getElementById('faceImageData').value = capturedPhoto;
+            
+            showNotification('success', 'Foto berhasil diambil!');
+        }
+
+        function retakePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const capturedImage = document.getElementById('capturedImage');
+            
+            // Tampilkan video lagi
+            video.style.display = 'block';
+            capturedImage.style.display = 'none';
+            
+            // Update button states
+            document.getElementById('captureBtn').classList.remove('hidden');
+            document.getElementById('retakeBtn').disabled = true;
+            
+            // Reset foto
+            capturedPhoto = null;
+            document.getElementById('faceImageData').value = '';
+        }
+
+        function resetCamera() {
+            // Reset semua elemen kamera
+            const video = document.getElementById('cameraVideo');
+            const capturedImage = document.getElementById('capturedImage');
+            
+            video.style.display = 'block';
+            capturedImage.style.display = 'none';
+            capturedImage.src = '';
+            
+            document.getElementById('startCameraBtn').disabled = false;
+            document.getElementById('startCameraBtn').classList.remove('hidden');
+            document.getElementById('captureBtn').disabled = true;
+            document.getElementById('captureBtn').classList.remove('hidden');
+            document.getElementById('retakeBtn').disabled = true;
+            
+            document.getElementById('faceImageData').value = '';
+            capturedPhoto = null;
+            
+            // Hentikan kamera jika sedang berjalan
+            stopCamera();
+        }
+
+        // ✅ FIXED: Load employees from API
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/karyawan-with-face-status');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('employeeTableBody');
+                const loadingRow = document.getElementById('loadingRow');
+                const countEl = document.getElementById('employeeCount');
+                
+                if (loadingRow) {
+                    loadingRow.remove();
+                }
+                
+                if (data.success && data.data.length > 0) {
+                    tbody.innerHTML = '';
+                    
+                    data.data.forEach(employee => {
+                        // Parse join date
+                        let joinDate = 'N/A';
+                        try {
+                            if (employee.dibuat) {
+                                const date = new Date(employee.dibuat);
+                                joinDate = date.toLocaleDateString('id-ID', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric'
+                                });
+                            }
+                        } catch (e) {
+                            joinDate = employee.dibuat || 'N/A';
+                        }
+                        
+                        // Determine shift display
+                        let shiftText = '-';
+                        let shiftClass = 'bg-gray-100 text-gray-800';
+                        if (employee.shift_id === 1) {
+                            shiftText = 'PAGI';
+                            shiftClass = 'bg-yellow-100 text-yellow-800';
+                        } else if (employee.shift_id === 2) {
+                            shiftText = 'SIANG';
+                            shiftClass = 'bg-blue-100 text-blue-800';
+                        }
+                        
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+                        row.innerHTML = `
+                            <td class="py-4 px-4">
+                                <span class="font-mono text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                    ${employee.kode}
+                                </span>
+                            </td>
+                            <td class="py-4 px-4">
+                                <div class="font-medium text-gray-900">${employee.nama}</div>
+                                <div class="text-xs text-gray-500">ID: ${employee.id}</div>
+                            </td>
+                            <td class="py-4 px-4">${employee.email || '-'}</td>
+                            <td class="py-4 px-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-medium ${shiftClass}">
+                                    ${shiftText}
+                                </span>
+                            </td>
+                            <td class="py-4 px-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-medium ${employee.face_registered ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    <i class="fas ${employee.face_registered ? 'fa-check-circle' : 'fa-times-circle'} mr-1"></i>
+                                    ${employee.face_registered ? 'Terdaftar' : 'Belum'}
+                                </span>
+                            </td>
+                            <td class="py-4 px-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-medium ${employee.aktif ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${employee.aktif ? 'Aktif' : 'Nonaktif'}
+                                </span>
+                            </td>
+                            <td class="py-4 px-4 text-sm text-gray-600">
+                                ${joinDate}
+                            </td>
+                            <td class="py-4 px-4">
+                                <div class="flex space-x-2">
+                                    <button onclick="editEmployee(${employee.id})" 
+                                            class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition">
+                                        <i class="fas fa-edit mr-1"></i>Edit
+                                    </button>
+                                    <button onclick="registerFace(${employee.id})" 
+                                            class="px-3 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200 transition">
+                                        <i class="fas fa-camera mr-1"></i>Wajah
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    countEl.textContent = data.data.length;
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="py-12 text-center">
+                                <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-users text-gray-400 text-2xl"></i>
+                                </div>
+                                <p class="text-gray-600 font-medium">Belum ada data karyawan</p>
+                                <p class="text-sm text-gray-500 mt-1">Klik "Tambah Karyawan" untuk memulai</p>
+                            </td>
+                        </tr>
+                    `;
+                    countEl.textContent = '0';
+                }
+                
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                const tbody = document.getElementById('employeeTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="py-12 text-center text-red-600">
+                                <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                                <p>Gagal memuat data karyawan</p>
+                                <button onclick="loadEmployees()" class="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm">
+                                    <i class="fas fa-redo mr-1"></i> Coba Lagi
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+
+        // Submit employee form
+        async function submitEmployeeForm() {
+            const form = document.getElementById('addEmployeeForm');
+            const formData = new FormData(form);
+            
+            // Validasi required fields
+            const nama = formData.get('nama');
+            const shiftId = formData.get('shift_id');
+            
+            if (!nama || !shiftId) {
+                showNotification('error', 'Nama dan shift wajib diisi!');
+                return;
+            }
+            
+            // Jika ada foto dari kamera, konversi ke blob
+            const faceImageData = document.getElementById('faceImageData').value;
+            if (faceImageData) {
+                try {
+                    // Konversi data URL ke blob
+                    const response = await fetch(faceImageData);
+                    const blob = await response.blob();
+                    formData.append('face_image', blob, 'face_photo.jpg');
+                } catch (error) {
+                    console.error('Error converting image:', error);
+                    showNotification('warning', 'Foto tidak dapat diproses, melanjutkan tanpa foto');
+                }
+            }
+            
+            // Show loading state
+            const submitBtn = document.querySelector('button[onclick="submitEmployeeForm()"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyimpan...';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/karyawan', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success message
+                    showNotification('success', `Karyawan berhasil ditambahkan! Kode: ${data.kode}`);
+                    
+                    // Close modal and refresh list
+                    closeModal();
+                    setTimeout(() => {
+                        loadEmployees();
+                    }, 1000);
+                    
+                } else {
+                    showNotification('error', `Error: ${data.message}`);
+                }
+                
+            } catch (error) {
+                showNotification('error', 'Terjadi kesalahan jaringan');
+                console.error('Error:', error);
+            } finally {
+                // Restore button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+
+        // ✅ FIXED: Fungsi registrasi wajah dari modal edit
+        function registerFaceFromEdit() {
+            if (!currentEditingEmployeeId) return;
+            
+            // Redirect ke halaman registrasi wajah dengan ID karyawan
+            window.location.href = `/register-face-general?employee_id=${currentEditingEmployeeId}`;
+        }
+
+        // Fungsi registrasi wajah langsung
+        function registerFace(employeeId) {
+            // Buka halaman registrasi wajah umum
+            window.location.href = `/register-face-general?employee_id=${employeeId}`;
+        }
+
+        // Helper functions
+        function showNotification(type, message) {
+            // Hapus notifikasi lama jika ada
+            const oldNotifications = document.querySelectorAll('.custom-notification');
+            oldNotifications.forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `custom-notification fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 
+                type === 'error' ? 'bg-red-500 text-white' : 
+                'bg-blue-500 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function searchEmployees() {
+            const searchTerm = document.getElementById('searchEmployee').value.toLowerCase();
+            const rows = document.querySelectorAll('#employeeTableBody tr');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('employeeCount').textContent = visibleCount;
+        }
+
+        function refreshEmployeeList() {
+            const refreshBtn = document.querySelector('button[onclick="refreshEmployeeList()"]');
+            const originalHTML = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            loadEmployees();
+            
+            setTimeout(() => {
+                refreshBtn.innerHTML = originalHTML;
+                showNotification('success', 'Data diperbarui');
+            }, 1000);
+        }
+        
+        function exportEmployeeData() {
+            // Export to Excel
+            window.open('/api/laporan?export_type=excel&report_type=employees', '_blank');
+        }
+
+        function showFaceCacheStats() {
+            // Load cache stats
+            loadFaceCacheStats();
+            document.getElementById('faceCacheModal').classList.remove('hidden');
+        }
+
+        function closeFaceCacheModal() {
+            document.getElementById('faceCacheModal').classList.add('hidden');
+        }
+
+        async function loadFaceCacheStats() {
+            try {
+                const response = await fetch('/api/face-cache-stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    document.getElementById('cacheTotal').textContent = stats.total_cached_faces || 0;
+                    document.getElementById('cacheRegistered').textContent = stats.employees_with_face || 0;
+                    
+                    // Update integrity
+                    const integrityEl = document.getElementById('cacheIntegrity');
+                    const rate = stats.registration_rate || 0;
+                    if (rate >= 80) {
+                        integrityEl.className = 'px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full';
+                        integrityEl.textContent = 'Excellent';
+                    } else if (rate >= 50) {
+                        integrityEl.className = 'px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full';
+                        integrityEl.textContent = 'Good';
+                    } else {
+                        integrityEl.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full';
+                        integrityEl.textContent = 'Poor';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading cache stats:', error);
+            }
+        }
+
+        // Stop camera when modal is closed
+        document.getElementById('addEmployeeModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'addEmployeeModal') {
+                stopCamera();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+Gunakan MASTER PROMPT yang sudah disimpan.
+
+Buatkan file: <NAMA_FILE>
+
+ATURAN WAJIB:
+1. Kode HARUS production-ready
+2. TIDAK BOLEH pseudo-code, TODO, atau placeholder
+3. HARUS sesuai models.py FINAL (tidak boleh ubah schema)
+4. Tidak boleh membuat file atau folder baru
+5. Semua import harus lengkap & valid
+6. Kode harus bisa langsung dijalankan
+
+Jika output kepanjangan:
+→ lanjutkan otomatis sampai file SELESAI
+→ jangan ulangi kode sebelumnya

@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+
+venv/
+.venv/
+
+.env
+.env.*
+
+dataset/*
+static/uploads/*
+*.pkl
+
+instance/
+.mypy_cache/
+.DS_Store

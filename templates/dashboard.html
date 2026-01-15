@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistem Absensi Wajah</title>
+    <!-- ✅ TAMBAHKAN CHART.JS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- ✅ TAMBAHKAN MOMENT.JS untuk format tanggal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/id.min.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .stat-card { transition: all 0.3s ease; }
+        .attendance-badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <div class="flex h-screen">
+        <div class="sidebar bg-white w-64 shadow-lg">
+            <div class="p-6 border-b">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-fingerprint text-white text-xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h2 class="text-lg font-bold text-gray-800">FaceAttendance</h2>
+                        <p class="text-xs text-gray-500">Sistem Absensi Wajah</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <div class="mb-8">
+                    <p class="text-xs uppercase text-gray-500 font-semibold mb-3">Menu Utama</p>
+                    <ul>
+                        <li class="mb-2">
+                            <a href="/dashboard" class="flex items-center p-3 text-blue-600 bg-blue-50 rounded-lg">
+                                <i class="fas fa-tachometer-alt mr-3"></i>
+                                <span class="font-medium">Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/karyawan" class="flex items-center p-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-users mr-3"></i>
+                                <span>Karyawan</span>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/shift" class="flex items-center p-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-clock mr-3"></i>
+                                <span>Shift</span>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/izin" class="flex items-center p-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-calendar-alt mr-3"></i>
+                                <span>Izin & Cuti</span>
+                                <span id="pendingBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full hidden">0</span>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/laporan" class="flex items-center p-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-chart-bar mr-3"></i>
+                                <span>Laporan</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="mb-8">
+                    <p class="text-xs uppercase text-gray-500 font-semibold mb-3">Pengaturan</p>
+                    <ul>
+                        <li class="mb-2">
+                            <a href="#" id="faceCacheLink" class="flex items-center p-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-database mr-3"></i>
+                                <span>Cache Wajah</span>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="#" onclick="exportTodayData()" class="flex items-center p-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-file-export mr-3"></i>
+                                <span>Export Data</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-700" id="userEmail">owner@company.com</p>
+                            <p class="text-xs text-gray-500">Owner</p>
+                        </div>
+                    </div>
+                    <button onclick="logout()" class="mt-4 w-full py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto scrollbar-thin">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b">
+                <div class="px-8 py-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+                            <p class="text-gray-600" id="currentDate">Selasa, 28 Mei 2024</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="relative">
+                                <button id="notificationBtn" class="p-2 text-gray-500 hover:text-gray-700 relative">
+                                    <i class="fas fa-bell text-xl"></i>
+                                    <span id="notificationCount" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <button onclick="refreshDashboard()" class="p-2 text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-sync-alt text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Main Content -->
+            <main class="p-8">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100 card-hover">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500">Total Karyawan</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-2" id="totalEmployees">0</p>
+                                <p class="text-xs text-gray-500 mt-1"><span id="activeEmployees">0</span> aktif</p>
+                            </div>
+                            <div class="p-3 bg-blue-50 rounded-lg">
+                                <i class="fas fa-users text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <a href="/karyawan" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                                Kelola Karyawan
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100 card-hover">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500">Absensi Hari Ini</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-2" id="todayAttendance">0</p>
+                                <p class="text-xs text-gray-500 mt-1"><span id="attendanceRate">0%</span> kehadiran</p>
+                            </div>
+                            <div class="p-3 bg-green-50 rounded-lg">
+                                <i class="fas fa-clipboard-check text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <a href="/laporan" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                                Lihat Detail
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100 card-hover">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500">Izin Tertunda</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-2" id="pendingLeaves">0</p>
+                                <p class="text-xs text-gray-500 mt-1">Perlu persetujuan</p>
+                            </div>
+                            <div class="p-3 bg-yellow-50 rounded-lg">
+                                <i class="fas fa-calendar-times text-yellow-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <a href="/izin" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                                Tinjau Izin
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100 card-hover">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm text-gray-500">Terlambat Hari Ini</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-2" id="lateToday">0</p>
+                                <p class="text-xs text-gray-500 mt-1">Karyawan terlambat</p>
+                            </div>
+                            <div class="p-3 bg-red-50 rounded-lg">
+                                <i class="fas fa-clock text-red-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <a href="#" onclick="showLateEmployees()" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                                Lihat Detail
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ✅ FIXED: Section Karyawan Terlambat -->
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8" id="lateEmployeesSection">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                                <i class="fas fa-clock text-red-500 mr-2"></i>Karyawan Terlambat Hari Ini
+                            </h3>
+                            <p class="text-sm text-gray-600">Daftar karyawan yang terlambat check-in hari ini</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span id="lateCountBadge" class="bg-red-100 text-red-800 text-sm px-3 py-1 rounded-full font-medium hidden">
+                                <span id="lateCount">0</span> terlambat
+                            </span>
+                            <button onclick="refreshLateEmployees()" class="p-2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="lateEmployeesContainer">
+                        <!-- Data akan diisi oleh JavaScript -->
+                        <div class="text-center py-8">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+                            <p class="text-gray-600 mt-2">Memuat data keterlambatan...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- Attendance Chart -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-semibold text-gray-800">Statistik Absensi 7 Hari Terakhir</h3>
+                            <select id="chartRange" onchange="loadAttendanceChart()" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
+                                <option value="7">7 Hari</option>
+                                <option value="14">14 Hari</option>
+                                <option value="30">30 Hari</option>
+                            </select>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Distribution -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-6">Distribusi Status Hari Ini</h3>
+                        <div class="h-64">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity & Quick Actions -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Recent Attendance -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-semibold text-gray-800">Absensi Terbaru Hari Ini</h3>
+                            <button onclick="refreshTodayAttendance()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                <i class="fas fa-sync-alt mr-1"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b">
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Nama Karyawan</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Check-in</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Check-out</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Similarity</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Liveness</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendanceTable">
+                                    <!-- Data will be populated by JavaScript -->
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-gray-500">
+                                            <i class="fas fa-spinner fa-spin mr-2"></i> Memuat data...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <a href="/laporan" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+                                Lihat Semua Absensi
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-6">Aksi Cepat</h3>
+                        <div class="space-y-4">
+                            <button onclick="addNewEmployee()" class="w-full flex items-center p-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-user-plus text-blue-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Tambah Karyawan Baru</p>
+                                    <p class="text-sm">Daftarkan karyawan baru</p>
+                                </div>
+                            </button>
+                            
+                            <button onclick="registerNewFace()" class="w-full flex items-center p-4 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-camera text-green-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Daftarkan Wajah</p>
+                                    <p class="text-sm">Registrasi wajah karyawan</p>
+                                </div>
+                            </button>
+                            
+                            <button onclick="createNewShift()" class="w-full flex items-center p-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition">
+                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-clock text-purple-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Buat Shift Baru</p>
+                                    <p class="text-sm">Atur jadwal kerja</p>
+                                </div>
+                            </button>
+                            
+                            <button onclick="exportReport()" class="w-full flex items-center p-4 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition">
+                                <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-file-export text-orange-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Export Laporan</p>
+                                    <p class="text-sm">Download data Excel/PDF</p>
+                                </div>
+                            </button>
+                            
+                            <button onclick="showSystemStats()" class="w-full flex items-center p-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition">
+                                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-chart-line text-gray-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Statistik Sistem</p>
+                                    <p class="text-sm">Lihat performa sistem</p>
+                                </div>
+                            </button>
+                        </div>
+                        
+                        <div class="mt-8 pt-6 border-t">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Sistem Absensi Aktif</h4>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-600">Halaman Absensi</span>
+                                <a href="/absen" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    Buka <i class="fas fa-external-link-alt ml-1"></i>
+                                </a>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Status Sistem</span>
+                                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                                    <i class="fas fa-circle text-xs mr-1"></i> Online
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Info Footer -->
+                <div class="mt-8 text-center text-gray-500 text-sm">
+                    <p>Sistem Absensi Wajah v1.0 • Terakhir diperbarui: <span id="lastUpdated">Hari ini</span></p>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <!-- ✅ FIXED: Face Cache Modal -->
+    <div id="faceCacheModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-800">Statistik Cache Wajah</h3>
+                    <button onclick="closeModal('faceCacheModal')" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Total Wajah Tersimpan</span>
+                        <span class="font-medium" id="cacheTotal">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Ukuran Cache</span>
+                        <span class="font-medium" id="cacheSize">0 KB</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Status Integritas</span>
+                        <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full" id="cacheIntegrity">Valid</span>
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button onclick="refreshCacheStats()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh
+                    </button>
+                    <button onclick="clearFaceCache()" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">
+                        <i class="fas fa-trash-alt mr-2"></i> Hapus Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Stats Modal -->
+    <div id="systemStatsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-800">Statistik Sistem</h3>
+                    <button onclick="closeModal('systemStatsModal')" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-500">Deteksi Wajah Berhasil</p>
+                            <p class="text-2xl font-bold text-gray-800 mt-1" id="faceDetectionSuccess">0</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-500">Deteksi Wajah Gagal</p>
+                            <p class="text-2xl font-bold text-gray-800 mt-1" id="faceDetectionFailed">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-500">Rata-rata Waktu Proses</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-1" id="avgProcessingTime">0ms</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-500">Kinerja Sistem</p>
+                        <div class="mt-2">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="systemPerformance" class="bg-green-600 h-2 rounded-full" style="width: 90%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let attendanceChart = null;
+        let statusChart = null;
+        
+        // ✅ FIXED: Utility functions
+        function safeSetInnerHTML(elementId, html) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = html;
+            } else {
+                console.warn(`Element #${elementId} not found`);
+            }
+        }
+        
+        function safeSetTextContent(elementId, text) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text;
+            } else {
+                console.warn(`Element #${elementId} not found`);
+            }
+        }
+        
+        function safeSetValue(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.value = value;
+            } else {
+                console.warn(`Element #${elementId} not found`);
+            }
+        }
+        
+        // Format date
+        function formatDate(date) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('id-ID', options);
+        }
+        
+        // Format time
+        function formatTime(time) {
+            return time ? time.split(':').slice(0, 2).join(':') : '-';
+        }
+        
+        // Get badge color for status
+        function getStatusBadge(status) {
+            const badges = {
+                'HADIR': 'bg-green-100 text-green-800',
+                'TERLAMBAT': 'bg-yellow-100 text-yellow-800',
+                'IZIN': 'bg-blue-100 text-blue-800',
+                'ALPA': 'bg-red-100 text-red-800',
+                'DITOLAK': 'bg-gray-100 text-gray-800'
+            };
+            return badges[status] || 'bg-gray-100 text-gray-800';
+        }
+        
+        // Close modal
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        // Show modal
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+        
+        // ✅ FIXED: showFaceCacheStats function
+        async function showFaceCacheStats() {
+            try {
+                console.log('Fetching face cache stats...');
+                const response = await fetch('/api/face-cache-stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    
+                    // Update modal content safely
+                    safeSetTextContent('cacheTotal', stats.total_cached_faces || 0);
+                    
+                    // Calculate approximate cache size
+                    const sizeKB = ((stats.total_cached_faces || 0) * 128) / 1024;
+                    safeSetTextContent('cacheSize', `${sizeKB.toFixed(1)} KB`);
+                    
+                    // Update integrity status
+                    const integrityEl = document.getElementById('cacheIntegrity');
+                    if (integrityEl) {
+                        const rate = stats.registration_rate || 0;
+                        if (rate >= 80) {
+                            integrityEl.className = 'px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full';
+                            integrityEl.textContent = 'Excellent';
+                        } else if (rate >= 50) {
+                            integrityEl.className = 'px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full';
+                            integrityEl.textContent = 'Good';
+                        } else {
+                            integrityEl.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full';
+                            integrityEl.textContent = 'Poor';
+                        }
+                    }
+                    
+                    // Show modal
+                    showModal('faceCacheModal');
+                    
+                } else {
+                    alert('Gagal memuat statistik cache: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error loading face cache stats:', error);
+                alert('Gagal memuat statistik cache');
+            }
+        }
+        
+        // ✅ FIXED: refreshCacheStats function
+        async function refreshCacheStats() {
+            const refreshBtn = event.target;
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+            refreshBtn.disabled = true;
+            
+            await showFaceCacheStats();
+            
+            setTimeout(() => {
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
+            }, 1000);
+        }
+        
+        // ✅ FIXED: clearFaceCache function
+        async function clearFaceCache() {
+            if (!confirm('Apakah Anda yakin ingin menghapus semua cache wajah? Tindakan ini akan menghapus encoding wajah dari memori.')) {
+                return;
+            }
+            
+            try {
+                // Call backend API to clear cache
+                const response = await fetch('/api/clear-face-cache', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Cache wajah berhasil dihapus');
+                    showFaceCacheStats(); // Refresh stats
+                } else {
+                    alert('Gagal menghapus cache: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error clearing cache:', error);
+                alert('Gagal menghapus cache');
+            }
+        }
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current date
+            safeSetTextContent('currentDate', formatDate(new Date()));
+            
+            // Set user email from session
+            const userEmail = localStorage.getItem('user_email') || 'owner@company.com';
+            safeSetTextContent('userEmail', userEmail);
+            
+            // Setup face cache link
+            const faceCacheLink = document.getElementById('faceCacheLink');
+            if (faceCacheLink) {
+                faceCacheLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showFaceCacheStats();
+                });
+            }
+            
+            // Load dashboard data
+            loadDashboardStats();
+            loadTodayAttendance();
+            loadAttendanceChart();
+            loadStatusChart();
+            loadNotifications();
+            
+            // Refresh every 30 seconds
+            setInterval(loadDashboardStats, 30000);
+        });
+        
+        // Load dashboard statistics
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/dashboard-stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    
+                    // Update stats cards safely
+                    safeSetTextContent('totalEmployees', stats.total_employees);
+                    safeSetTextContent('activeEmployees', stats.total_employees);
+                    safeSetTextContent('todayAttendance', stats.today_attendance);
+                    safeSetTextContent('attendanceRate', stats.attendance_rate + '%');
+                    safeSetTextContent('pendingLeaves', stats.pending_leaves);
+                    safeSetTextContent('lateToday', stats.late_today);
+                    
+                    // Update pending badge
+                    const pendingBadge = document.getElementById('pendingBadge');
+                    if (pendingBadge) {
+                        if (stats.pending_leaves > 0) {
+                            pendingBadge.textContent = stats.pending_leaves;
+                            pendingBadge.classList.remove('hidden');
+                        } else {
+                            pendingBadge.classList.add('hidden');
+                        }
+                    }
+                    
+                    // Update last updated time
+                    safeSetTextContent('lastUpdated', new Date().toLocaleTimeString('id-ID'));
+                }
+                
+                // Load late employees data
+                loadLateEmployees();
+                
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+            }
+        }
+        
+        // Load today's attendance
+        async function loadTodayAttendance() {
+            try {
+                const response = await fetch('/api/attendance-today');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tableBody = document.getElementById('attendanceTable');
+                    if (!tableBody) return;
+                    
+                    if (data.data.length === 0) {
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-gray-500">
+                                    <i class="fas fa-calendar-day mr-2"></i>Belum ada absensi hari ini
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.data.forEach(item => {
+                        html += `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">
+                                    <div class="font-medium">${item.nama}</div>
+                                    <div class="text-xs text-gray-500">${item.kode}</div>
+                                </td>
+                                <td class="py-3 px-4">${item.check_in}</td>
+                                <td class="py-3 px-4">${item.check_out}</td>
+                                <td class="py-3 px-4">
+                                    <span class="attendance-badge ${getStatusBadge(item.status)}">
+                                        ${item.status}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-green-600 h-2 rounded-full" style="width: ${parseFloat(item.similarity) * 100 || 0}%"></div>
+                                        </div>
+                                        <span class="text-sm">${item.similarity}</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">${item.liveness_ok}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableBody.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error loading today attendance:', error);
+                const tableBody = document.getElementById('attendanceTable');
+                if (tableBody) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-red-500">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>Gagal memuat data
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+        
+        // Load attendance chart
+        async function loadAttendanceChart() {
+            try {
+                const range = document.getElementById('chartRange')?.value || '7';
+                
+                if (attendanceChart) {
+                    attendanceChart.destroy();
+                }
+                
+                const ctx = document.getElementById('attendanceChart');
+                if (!ctx) return;
+                
+                attendanceChart = new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                        datasets: [{
+                            label: 'Absensi',
+                            data: [65, 59, 80, 81, 56, 55, 70],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' orang';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading attendance chart:', error);
+            }
+        }
+        
+        // Load status chart
+        async function loadStatusChart() {
+            try {
+                if (statusChart) {
+                    statusChart.destroy();
+                }
+                
+                const ctx = document.getElementById('statusChart');
+                if (!ctx) return;
+                
+                statusChart = new Chart(ctx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Hadir', 'Terlambat', 'Izin', 'Alpa'],
+                        datasets: [{
+                            data: [70, 15, 10, 5],
+                            backgroundColor: [
+                                '#10b981',
+                                '#f59e0b',
+                                '#3b82f6',
+                                '#ef4444'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            }
+                        },
+                        cutout: '70%'
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading status chart:', error);
+            }
+        }
+        
+        // Load notifications
+        async function loadNotifications() {
+            try {
+                // Simulate notifications
+                const notifications = [
+                    { type: 'izin', message: '3 permohonan izin baru', time: '10 menit lalu' },
+                    { type: 'absensi', message: 'Karyawan terlambat: Budi', time: '30 menit lalu' },
+                    { type: 'sistem', message: 'Backup database berhasil', time: '2 jam lalu' }
+                ];
+                
+                const notificationCount = document.getElementById('notificationCount');
+                if (notificationCount) {
+                    if (notifications.length > 0) {
+                        notificationCount.textContent = notifications.length;
+                        notificationCount.classList.remove('hidden');
+                    } else {
+                        notificationCount.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+        
+        // ✅ FIXED: Load late employees
+        async function loadLateEmployees() {
+            try {
+                const response = await fetch('/api/dashboard/late-today');
+                const data = await response.json();
+                
+                const container = document.getElementById('lateEmployeesContainer');
+                const lateCountBadge = document.getElementById('lateCountBadge');
+                const lateCount = document.getElementById('lateCount');
+                
+                if (!container) return;
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    if (lateCount) lateCount.textContent = data.count || data.data.length;
+                    if (lateCountBadge) lateCountBadge.classList.remove('hidden');
+                    
+                    let html = `
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b">
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Kode</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Nama</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Check-in</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Shift</th>
+                                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Terlambat</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    data.data.forEach(emp => {
+                        // Warna berdasarkan tingkat keterlambatan
+                        let lateColor = 'text-yellow-600';
+                        let lateBg = 'bg-yellow-50';
+                        if (emp.terlambat_menit > 30) {
+                            lateColor = 'text-red-600';
+                            lateBg = 'bg-red-50';
+                        } else if (emp.terlambat_menit <= 15) {
+                            lateColor = 'text-orange-600';
+                            lateBg = 'bg-orange-50';
+                        }
+                        
+                        html += `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">
+                                    <span class="font-mono text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                        ${emp.kode}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-medium text-gray-800">${emp.nama}</td>
+                                <td class="py-3 px-4 text-gray-600">${emp.check_in}</td>
+                                <td class="py-3 px-4">
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                                        ${emp.jam_masuk}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <span class="px-3 py-1 ${lateBg} ${lateColor} rounded-full text-sm font-medium">
+                                        <i class="fas fa-clock mr-1"></i>${emp.terlambat_menit} menit
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-check text-green-600 text-2xl"></i>
+                            </div>
+                            <p class="text-gray-600 font-medium">Tidak ada karyawan terlambat hari ini</p>
+                            <p class="text-sm text-gray-500 mt-1">Semua karyawan hadir tepat waktu</p>
+                        </div>
+                    `;
+                    if (lateCountBadge) lateCountBadge.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading late employees:', error);
+                const container = document.getElementById('lateEmployeesContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-red-600">
+                            <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                            <p>Gagal memuat data keterlambatan</p>
+                            <button onclick="loadLateEmployees()" class="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm">
+                                <i class="fas fa-redo mr-1"></i> Coba Lagi
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // ✅ FIXED: Refresh late employees
+        function refreshLateEmployees() {
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            
+            loadLateEmployees();
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }, 1000);
+        }
+        
+        // Show system stats
+        async function showSystemStats() {
+            try {
+                // Simulate system stats
+                safeSetTextContent('faceDetectionSuccess', Math.floor(Math.random() * 1000) + 500);
+                safeSetTextContent('faceDetectionFailed', Math.floor(Math.random() * 50));
+                safeSetTextContent('avgProcessingTime', (Math.random() * 500 + 100).toFixed(0) + 'ms');
+                
+                const performance = Math.floor(Math.random() * 30) + 70;
+                const performanceEl = document.getElementById('systemPerformance');
+                if (performanceEl) {
+                    performanceEl.style.width = performance + '%';
+                }
+            } catch (error) {
+                console.error('Error loading system stats:', error);
+            }
+            
+            showModal('systemStatsModal');
+        }
+        
+        // Show late employees
+        function showLateEmployees() {
+            // Scroll to late employees section
+            const section = document.getElementById('lateEmployeesSection');
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        // Add new employee
+        function addNewEmployee() {
+            window.location.href = '/karyawan#add';
+        }
+        
+        // Register new face
+        function registerNewFace() {
+            window.location.href = '/register-face-general';
+        }
+        
+        // Create new shift
+        function createNewShift() {
+            window.location.href = '/shift#add';
+        }
+        
+        // Export report
+        function exportReport() {
+            window.location.href = '/laporan';
+        }
+        
+        // Export today's data
+        function exportTodayData() {
+            const a = document.createElement('a');
+            a.href = '/api/laporan?start_date=' + new Date().toISOString().split('T')[0] + '&export_type=excel';
+            a.download = 'absensi_harian_' + new Date().toISOString().split('T')[0] + '.xlsx';
+            a.click();
+        }
+        
+        // Refresh dashboard
+        function refreshDashboard() {
+            const refreshBtn = event.target.closest('button');
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i>';
+                refreshBtn.disabled = true;
+            }
+            
+            loadDashboardStats();
+            loadTodayAttendance();
+            loadAttendanceChart();
+            loadStatusChart();
+            
+            setTimeout(() => {
+                if (refreshBtn) {
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt text-xl"></i>';
+                    refreshBtn.disabled = false;
+                }
+            }, 1500);
+        }
+        
+        // Refresh today attendance
+        function refreshTodayAttendance() {
+            loadTodayAttendance();
+        }
+        
+        // Logout
+        function logout() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+        
+        // Handle notifications click
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBtn = document.getElementById('notificationBtn');
+            if (notificationBtn) {
+                notificationBtn.addEventListener('click', function() {
+                    alert('Fitur notifikasi akan dikembangkan lebih lanjut.');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

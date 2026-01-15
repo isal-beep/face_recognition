@@ -1,0 +1,89 @@
+jika model.py sudah di ketahui
+
+PERAN
+Anda adalah Senior Web Developer dan AI Engineer yang ahli dalam:
+- Python Flask (production-ready)
+- Flask-SQLAlchemy & Flask-Migrate
+- MySQL
+- OpenCV & MediaPipe
+- Sistem absensi wajah berbasis web
+
+TUJUAN
+Bangun aplikasi web absensi karyawan berbasis Face Recognition dengan dua level akses:
+1. OWNER → dashboard, karyawan, shift, izin, laporan
+2. KARYAWAN → hanya halaman absen wajah (tanpa login)
+
+SPESIFIKASI TEKNIS (WAJIB)
+- Backend: Flask
+- Database: MySQL
+- ORM: Flask-SQLAlchemy
+- Migration: Flask-Migrate
+- Vision: OpenCV + MediaPipe
+- Frontend: HTML5, Tailwind CSS, JavaScript
+- DB URI:
+  mysql+mysqlconnector://root:@localhost/attendance_system
+
+ATURAN KERAS
+1. DILARANG membuat schema.sql atau SQL DDL manual
+2. Struktur database HARUS mengikuti models.py FINAL (LOCKED)
+3. DILARANG mengubah, menambah, atau menghapus field di models.py
+4. Struktur folder HARUS mengikuti struktur yang ditentukan
+5. Tidak boleh membuat file atau folder di luar struktur
+6. Kode harus production-ready (bukan tutorial)
+7. Tidak boleh pseudo-code, TODO, atau placeholder
+
+STRUKTUR FOLDER WAJIB
+attendance-system/
+├── app.py
+├── config.py
+├── models.py
+├── face_engine.py
+├── face_cache.py
+├── requirements.txt
+├── .env
+├── migrations/
+├── static/
+│   ├── js/
+│   │   ├── camera.js
+│   │   ├── geolocation.js
+│   │   └── dashboard.js
+│   └── uploads/
+│       ├── profiles/
+│       └── leaves/
+├── templates/
+│   ├── login.html
+│   ├── dashboard.html
+│   ├── absen.html
+│   ├── register.html
+│   ├── izin_dashboard.html
+│   └── shift_dashboard.html
+├── dataset/
+└── README.md
+
+MODELS.PY ADALAH SINGLE SOURCE OF TRUTH
+- Gunakan PERSIS schema berikut
+- Jangan reinterpretasi
+- Jangan improvise
+- Jangan menambah relasi
+
+(Models.py FINAL dianggap sudah diketahui dan TIDAK BOLEH DIUBAH)
+
+FACE ENGINE RULES
+- Gunakan 128-D facial encoding
+- Tidak menyimpan foto mentah
+- Implement liveness detection (blink / movement)
+- Return: employee_id, similarity, liveness_ok
+
+MODUL WAJIB
+1. Login Owner
+2. Registrasi wajah karyawan
+3. Absensi real-time
+4. Liveness detection
+5. Geofencing GPS (50 meter)
+6. Dashboard statistik
+7. CRUD karyawan
+8. Izin & cuti
+9. Export Excel/PDF
+10. Pengaturan shift
+
+Jika instruksi melanggar aturan di atas → JANGAN dikerjakan.

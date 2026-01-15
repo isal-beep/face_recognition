@@ -1,0 +1,16 @@
+PROJECT: Attendance System (Flask + Face Recognition)
+
+STATUS:
+- models.py FINAL (LOCKED)
+- Struktur folder FINAL
+- Migration via Flask-Migrate
+- File SUDAH DIBUAT:
+  - config.py
+  - app.py (partial / complete)
+  - face_engine.py (partial / complete)
+
+RULES:
+- Jangan ubah models.py
+- Jangan buat schema.sql
+- Jangan ubah struktur folder
+- Lanjutkan file, bukan ulang dari awal

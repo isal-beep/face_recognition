@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Owner - Sistem Absensi Wajah</title>
+    <!-- Gunakan format url_for Flask agar tidak 404 -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .input-group:focus-within {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .alert-success {
+            background: linear-gradient(to right, #10b981, #34d399);
+        }
+        
+        .alert-error {
+            background: linear-gradient(to right, #ef4444, #f87171);
+        }
+        
+        .alert-info {
+            background: linear-gradient(to right, #3b82f6, #60a5fa);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md fade-in">
+        <!-- Logo & Title -->
+        <div class="text-center mb-8">
+            <div class="relative inline-block mb-4">
+                <div class="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center shadow-xl floating">
+                    <i class="fas fa-fingerprint text-white text-3xl"></i>
+                    <div class="absolute inset-0 rounded-full border-4 border-indigo-300 opacity-30 pulse-ring"></div>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">KINILAY ATTENDANCE</h1>
+            <p class="text-indigo-100 font-medium">Owner Login Area</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="login-card rounded-2xl shadow-2xl p-8">
+            <!-- System Info -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 mb-6 border border-indigo-100">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 mt-1">
+                        <i class="fas fa-info-circle text-indigo-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-semibold text-gray-800">Informasi Sistem</h3>
+                        <div class="mt-1 space-y-1">
+                            <p class="text-xs text-gray-600 flex items-center">
+                                <i class="fas fa-user-shield mr-2 text-indigo-400"></i>
+                                Hanya owner yang dapat login
+                            </p>
+                            <p class="text-xs text-gray-600 flex items-center">
+                                <i class="fas fa-camera mr-2 text-purple-400"></i>
+                                Karyawan absen langsung via wajah
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="space-y-3 mb-6">
+                        {% for category, message in messages %}
+                            <div class="alert-{{ 'success' if category == 'success' else 'error' if category == 'error' else 'info' }} text-white rounded-lg p-4 flex items-center justify-between">
+                                <div class="flex items-center">
+                                    {% if category == 'error' %}
+                                        <i class="fas fa-exclamation-circle mr-3"></i>
+                                    {% elif category == 'success' %}
+                                        <i class="fas fa-check-circle mr-3"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle mr-3"></i>
+                                    {% endif %}
+                                    <span class="font-medium">{{ message }}</span>
+                                </div>
+                                <button type="button" class="text-white opacity-75 hover:opacity-100" onclick="this.parentElement.remove()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Login Form -->
+            <form id="loginForm" method="POST" action="{{ url_for('login') }}">
+                <!-- Email -->
+                <div class="mb-6">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-envelope mr-2 text-indigo-500"></i>
+                        Email Owner
+                    </label>
+                    <div class="input-group relative rounded-lg overflow-hidden border border-gray-300 focus-within:border-indigo-500 transition-all duration-200">
+                        <input type="email" 
+                               id="email" 
+                               name="email"
+                               required
+                               autocomplete="email"
+                               autofocus
+                               placeholder="owner@company.com"
+                               class="w-full px-4 py-3 text-gray-700 focus:outline-none focus:ring-0">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <i class="fas fa-user-tie text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-lock mr-2 text-indigo-500"></i>
+                        Password
+                    </label>
+                    <div class="input-group relative rounded-lg overflow-hidden border border-gray-300 focus-within:border-indigo-500 transition-all duration-200">
+                        <input type="password" 
+                               id="password" 
+                               name="password"
+                               required
+                               autocomplete="current-password"
+                               placeholder="••••••••"
+                               class="w-full px-4 py-3 text-gray-700 focus:outline-none focus:ring-0">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
+                            <button type="button" 
+                                    id="togglePassword" 
+                                    class="text-gray-400 hover:text-indigo-500 focus:outline-none">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <i class="fas fa-key text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        id="loginBtn"
+                        class="btn-primary w-full text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center">
+                    <span id="loginText">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        Login sebagai Owner
+                    </span>
+                    <span id="loadingSpinner" class="hidden ml-2">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </span>
+                </button>
+            </form>
+
+            <!-- Footer Links -->
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <div class="text-center space-y-3">
+                    <a href="{{ url_for('absen_page') }}" 
+                       class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors duration-200">
+                        <i class="fas fa-camera mr-2"></i>
+                        Halaman Absen Karyawan
+                    </a>
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-copyright mr-1"></i>
+                        2025 Attendance System v1.0
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Password toggle functionality
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        // Form submission with validation
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loginText = document.getElementById('loginText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            // Validation
+            if (!email.includes('@') || !email.includes('.')) {
+                showAlert('Email tidak valid', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showAlert('Password minimal 8 karakter', 'error');
+                return;
+            }
+            
+            // Show loading state
+            loginBtn.disabled = true;
+            loginText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
+            
+            // Submit form
+            this.submit();
+        });
+
+        // Function to show alert
+        function showAlert(message, type = 'info') {
+            // Remove existing alerts
+            const existingAlerts = document.querySelectorAll('.custom-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `custom-alert alert-${type} text-white rounded-lg p-4 mb-4 flex items-center justify-between shadow-lg fade-in`;
+            alertDiv.innerHTML = `
+                <div class="flex items-center">
+                    ${type === 'error' ? '<i class="fas fa-exclamation-circle mr-3"></i>' : 
+                      type === 'success' ? '<i class="fas fa-check-circle mr-3"></i>' : 
+                      '<i class="fas fa-info-circle mr-3"></i>'}
+                    <span class="font-medium">${message}</span>
+                </div>
+                <button type="button" class="text-white opacity-75 hover:opacity-100 ml-4" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            // Insert after system info
+            const systemInfo = document.querySelector('.bg-gradient-to-r');
+            systemInfo.parentNode.insertBefore(alertDiv, systemInfo.nextSibling);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Auto focus email field
+        document.getElementById('email').focus();
+
+        // Handle session timeout parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('timeout')) {
+            showAlert('Sesi Anda telah berakhir. Silakan login kembali.', 'info');
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // Prevent form resubmission on refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+
+        // Add input validation styling
+        const inputs = document.querySelectorAll('input[required]');
+        inputs.forEach(input => {
+            input.addEventListener('invalid', function(e) {
+                e.preventDefault();
+                this.classList.add('border-red-500');
+            });
+            
+            input.addEventListener('input', function() {
+                this.classList.remove('border-red-500');
+            });
+        });
+    </script>
+    <script>
+    // Memastikan fokus berjalan setelah halaman benar-benar siap
+    window.addEventListener('load', () => {
+        // Ganti 'email' dengan ID atau Name dari input login Anda
+        const loginField = document.querySelector('input[name="email"]') || document.querySelector('input[type="text"]');
+        if (loginField) {
+            loginField.focus();
+        }
+    });
+</script>
+
+</body>
+</html>
