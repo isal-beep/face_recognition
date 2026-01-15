@@ -1,4 +1,4 @@
-import cv2
+
 import numpy as np
 import pickle
 import os
@@ -144,6 +144,7 @@ class FaceEngine:
             return 0.0
     
     def process_attendance(self, image: np.ndarray) -> dict:
+        import cv2
         """
         Process attendance image for face recognition and liveness detection
         

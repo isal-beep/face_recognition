@@ -1,5 +1,6 @@
 # =================== SILENCE TF & MEDIAPIPE ===================
 import os
+os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["GLOG_minloglevel"] = "3"
@@ -11,8 +12,7 @@ logging.getLogger("tensorflow").setLevel(logging.ERROR)
 logging.getLogger("mediapipe").setLevel(logging.ERROR)
 
 # =================== IMPORT YANG DIPERLUKAN ===================
-import cv2
-import numpy as np
+
 
 from datetime import datetime, date, time, timedelta
 import math
@@ -258,6 +258,8 @@ def public_today_attendance():
 
 @app.route('/api/absen', methods=['POST'])
 def absen():
+    import cv2
+    import numpy as np
     """Handle attendance check-in/check-out - FIXED FOR YOUR MODEL"""
     try:
         print(f"=== ABSEN REQUEST STARTED ===")
