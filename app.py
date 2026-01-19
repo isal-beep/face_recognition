@@ -229,6 +229,13 @@ def leave():
     db.session.commit()
     return {"id": req.id}
 
+@app.route("/")
+def index():
+    return {
+        "message": "Attendance API is running",
+        "status": "ok"
+    }
+
 # ===============================
 # LOCAL ONLY
 # ===============================
