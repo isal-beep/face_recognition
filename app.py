@@ -41,14 +41,14 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
+    app.config.from_object(Config)
 
-    # Ambil config sesuai environment
-    config_class = get_config()
-    app.config.from_object(config_class)
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = config_class.build_database_uri()
-
-
+    # DATABASE
+    app.config["SQLALCHEMY_DATABASE_URI"] = Config.build_database_uri()
+    db.init_app(app)
+    return app
+    app = create_app()
+    
     # Init extensions
     db.init_app(app)
     migrate.init_app(app, db)
