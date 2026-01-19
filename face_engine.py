@@ -341,12 +341,11 @@ class FaceEngine:
             'liveness_threshold': self.liveness_threshold,
             'cache_file_exists': os.path.exists(Config.FACE_CACHE_FILE)
         }
-#lazy load
-_face_engine = None
+# Global face engine (lazy safe)
+face_engine = None
 
-def get_face_engine():
-    global _face_engine
-    if _face_engine is None:
-        _face_engine = FaceEngine()
-    return _face_engine
-
+def get_face_engine_safe():
+    global face_engine
+    if face_engine is None:
+        face_engine = get_face_engine()
+    return face_engine

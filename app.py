@@ -34,10 +34,33 @@ from flask_migrate import Migrate
 # ==============================================================
 
 # Initialize Flask app
-app = Flask(__name__)
-app.config.from_object(Config)
-db.init_app(app)
-migrate = Migrate(app, db)
+from config import get_config, Config
+
+db = SQLAlchemy()
+migrate = Migrate()
+
+def create_app():
+    app = Flask(__name__)
+
+    # Ambil config sesuai environment
+    config_class = get_config()
+    app.config.from_object(config_class)
+
+    # ✅ VALIDASI MYSQL SETELAH CONFIG DI-LOAD
+    Config.validate_mysql()
+    app.config["SQLALCHEMY_DATABASE_URI"] = Config.build_database_uri()
+
+    # Init extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
+
+    # Init config tambahan
+    config_class.init_app(app)
+
+    return app
+
+
+app = create_app()
 
 # ========== CONTEXT PROCESSOR FOR TEMPLATES ==========
 @app.context_processor
