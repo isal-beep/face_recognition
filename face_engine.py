@@ -1,14 +1,27 @@
 def safe_import_cv2():
     try:
-        import cv2
+        cv2 = get_cv2()
+        if cv2 is None:
+            return {
+        'employee_id': None,
+        'similarity': 0.0,
+        'liveness_ok': False
+    }
+
         return cv2
     except Exception as e:
         raise RuntimeError("OpenCV not available (Railway headless)") from e
 
-
 def safe_import_np():
     import numpy as np
     return np
+
+def get_cv2():
+    try:
+        import cv2
+        return cv2
+    except Exception:
+        return None
 
 import numpy as np
 import pickle
@@ -155,7 +168,14 @@ class FaceEngine:
             return 0.0
     
     def process_attendance(self, image: np.ndarray) -> dict:
-        import cv2
+        cv2 = get_cv2()
+        if cv2 is None:
+            return {
+        'employee_id': None,
+        'similarity': 0.0,
+        'liveness_ok': False
+    }
+
         """
         Process attendance image for face recognition and liveness detection
         

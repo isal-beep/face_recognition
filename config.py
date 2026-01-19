@@ -3,6 +3,23 @@ from datetime import timedelta
 
 
 class Config:
+    @classmethod
+    def validate_mysql(cls):
+        missing = []
+    if not cls.MYSQL_HOST:
+        missing.append("MYSQLHOST")
+    if not cls.MYSQL_USER:
+        missing.append("MYSQLUSER")
+    if not cls.MYSQL_PASSWORD:
+        missing.append("MYSQLPASSWORD")
+    if not cls.MYSQL_DB:
+        missing.append("MYSQLDATABASE")
+
+    if missing:
+        raise RuntimeError(
+            "MySQL env belum diset (Railway): " + ", ".join(missing)
+        )
+
     """Production configuration"""
     
     # Security
@@ -15,8 +32,7 @@ class Config:
     MYSQL_PORT = os.getenv("MYSQLPORT", "3306")
     MYSQL_DB = os.getenv("MYSQLDATABASE")
 
-    if not MYSQL_HOST:
-        raise RuntimeError("MySQL environment variables not set (Railway)")
+ 
 
     SQLALCHEMY_DATABASE_URI = (
         f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}"

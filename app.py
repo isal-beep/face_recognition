@@ -46,9 +46,8 @@ def create_app():
     config_class = get_config()
     app.config.from_object(config_class)
 
-    # ✅ VALIDASI MYSQL SETELAH CONFIG DI-LOAD
-    Config.validate_mysql()
-    app.config["SQLALCHEMY_DATABASE_URI"] = Config.build_database_uri()
+    app.config["SQLALCHEMY_DATABASE_URI"] = config_class.build_database_uri()
+
 
     # Init extensions
     db.init_app(app)
