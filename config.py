@@ -18,8 +18,11 @@ class Config:
     MYSQL_DB = os.getenv("MYSQLDATABASE")
 
     # ======================
-    # DATABASE URI BUILDER
+    # UPLOAD / SESSION
     # ======================
+    UPLOAD_FOLDER = "static/uploads"
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+
     @classmethod
     def is_mysql_ready(cls) -> bool:
         return all([
@@ -39,21 +42,9 @@ class Config:
                 f"/{cls.MYSQL_DB}"
             )
 
-        # ✅ FALLBACK SQLITE (WAJIB ADA)
+        # ✅ SQLITE FALLBACK (WAJIB)
         return "sqlite:///attendance.db"
-
-    SQLALCHEMY_DATABASE_URI = build_database_uri.__func__(None)
-
-    # ======================
-    # SESSION & UPLOAD
-    # ======================
-    UPLOAD_FOLDER = "static/uploads"
-    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
 
     @staticmethod
     def init_app(app):
         os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
-print("MYSQL ENV:", {
-    "host": os.getenv("MYSQLHOST"),
-    "db": os.getenv("MYSQLDATABASE")
-})
